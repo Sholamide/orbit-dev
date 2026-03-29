@@ -2,9 +2,11 @@ import { useRouter } from 'expo-router';
 import React, { use, useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { EventSwipeCard } from '@/components/event-swipe-card';
 import { SwipeCard } from '@/components/swipe-card';
+import { useAppTheme } from '@/constants/tokens';
 import { AuthContext } from '@/contexts/auth-context';
 import { supabase } from '@/lib/supabase';
 import { type EventWithVenue, type Venue } from '@/lib/types';
@@ -14,6 +16,8 @@ type DiscoverMode = 'spots' | 'events';
 export default function DiscoverScreen() {
   const { user } = use(AuthContext);
   const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const theme = useAppTheme();
 
   const [mode, setMode] = useState<DiscoverMode>('spots');
   const [venues, setVenues] = useState<Venue[]>([]);
@@ -24,10 +28,15 @@ export default function DiscoverScreen() {
   const fetchVenues = useCallback(async () => {
     if (!user) return;
 
-    const { data: swipedVenueIds } = await supabase
+    const { data: swipedVenueIds, error: swipeError } = await supabase
       .from('swipes')
       .select('venue_id')
       .eq('user_id', user.id);
+
+    if (swipeError) {
+      setLoading(false);
+      return;
+    }
 
     const excludeIds = swipedVenueIds?.map((s) => s.venue_id) ?? [];
 
@@ -40,7 +49,11 @@ export default function DiscoverScreen() {
       query = query.not('id', 'in', `(${excludeIds.join(',')})`);
     }
 
-    const { data } = await query;
+    const { data, error: venueError } = await query;
+    if (venueError) {
+      setLoading(false);
+      return;
+    }
     setVenues(data ?? []);
     setCurrentIndex(0);
     setLoading(false);
@@ -53,12 +66,17 @@ export default function DiscoverScreen() {
     const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
     const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).toISOString();
 
-    const { data: eventData } = await supabase
+    const { data: eventData, error: eventError } = await supabase
       .from('events')
       .select('*')
       .gte('starts_at', startOfDay)
       .lt('starts_at', endOfDay)
       .order('starts_at', { ascending: true });
+
+    if (eventError) {
+      setLoading(false);
+      return;
+    }
 
     if (!eventData || eventData.length === 0) {
       setEvents([]);
@@ -68,13 +86,19 @@ export default function DiscoverScreen() {
     }
 
     const venueIds = [...new Set(eventData.map((e) => e.venue_id))];
-    const { data: venueData } = await supabase
+    const { data: venueData, error: venueError } = await supabase
       .from('venues')
       .select('*')
       .in('id', venueIds);
 
+    if (venueError || !venueData) {
+      console.error('Failed to fetch venues:', venueError?.message);
+      setLoading(false);
+      return;
+    }
+
     const venueMap: Record<string, (typeof venueData extends (infer T)[] | null ? T : never)> = {};
-    for (const v of venueData ?? []) venueMap[v.id] = v;
+    for (const v of venueData) venueMap[v.id] = v;
 
     const eventsWithVenue: EventWithVenue[] = eventData
       .filter((e) => venueMap[e.venue_id])
@@ -138,8 +162,8 @@ export default function DiscoverScreen() {
 
   if (loading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#0D0D0D' }}>
-        <ActivityIndicator size="large" color="#FF6B6B" />
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.colors.background }}>
+        <ActivityIndicator size="large" color={theme.colors.primary} />
       </View>
     );
   }
@@ -149,9 +173,9 @@ export default function DiscoverScreen() {
   const noMore = remaining.length === 0;
 
   return (
-    <GestureHandlerRootView style={{ flex: 1, backgroundColor: '#0D0D0D' }}>
-      <View style={{ paddingTop: 60, paddingHorizontal: 16, paddingBottom: 8 }}>
-        <Text style={{ fontSize: 32, fontWeight: '800', color: '#FFF' }}>
+    <GestureHandlerRootView style={{ flex: 1, backgroundColor: theme.colors.background }}>
+      <View style={{ paddingTop: insets.top + 16, paddingHorizontal: 16, paddingBottom: 8 }}>
+        <Text style={{ fontSize: 32, fontWeight: '800', color: theme.colors.text }}>
           Discover
         </Text>
 
@@ -159,7 +183,7 @@ export default function DiscoverScreen() {
         <View
           style={{
             flexDirection: 'row',
-            backgroundColor: '#1A1A1A',
+            backgroundColor: theme.colors.surface,
             borderRadius: 14,
             borderCurve: 'continuous',
             padding: 4,
@@ -173,13 +197,13 @@ export default function DiscoverScreen() {
               paddingVertical: 10,
               borderRadius: 11,
               borderCurve: 'continuous',
-              backgroundColor: mode === 'spots' ? '#FF6B6B' : 'transparent',
+              backgroundColor: mode === 'spots' ? theme.colors.primary : 'transparent',
               alignItems: 'center',
             }}
           >
             <Text
               style={{
-                color: mode === 'spots' ? '#FFF' : '#888',
+                color: mode === 'spots' ? theme.colors.text : theme.colors.textTertiary,
                 fontWeight: '700',
                 fontSize: 14,
               }}
@@ -194,13 +218,13 @@ export default function DiscoverScreen() {
               paddingVertical: 10,
               borderRadius: 11,
               borderCurve: 'continuous',
-              backgroundColor: mode === 'events' ? '#FF6B6B' : 'transparent',
+              backgroundColor: mode === 'events' ? theme.colors.primary : 'transparent',
               alignItems: 'center',
             }}
           >
             <Text
               style={{
-                color: mode === 'events' ? '#FFF' : '#888',
+                color: mode === 'events' ? theme.colors.text : theme.colors.textTertiary,
                 fontWeight: '700',
                 fontSize: 14,
               }}
@@ -210,7 +234,7 @@ export default function DiscoverScreen() {
           </Pressable>
         </View>
 
-        <Text style={{ fontSize: 15, color: '#888', marginTop: 8 }}>
+        <Text style={{ fontSize: 15, color: theme.colors.textTertiary, marginTop: 8 }}>
           {mode === 'spots'
             ? 'Swipe right on spots that look fire 🔥'
             : "Swipe right to RSVP to today's events 🙋"}
@@ -221,10 +245,10 @@ export default function DiscoverScreen() {
         {noMore ? (
           <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', gap: 16 }}>
             <Text style={{ fontSize: 48 }}>{mode === 'spots' ? '🌙' : '🎭'}</Text>
-            <Text style={{ fontSize: 20, fontWeight: '700', color: '#FFF' }}>
+            <Text style={{ fontSize: 20, fontWeight: '700', color: theme.colors.text }}>
               {mode === 'spots' ? "You've seen everything" : 'No more events today'}
             </Text>
-            <Text style={{ fontSize: 15, color: '#888', textAlign: 'center' }}>
+            <Text style={{ fontSize: 15, color: theme.colors.textTertiary, textAlign: 'center' }}>
               {mode === 'spots'
                 ? "Check back later for new spots\nor explore what's trending."
                 : 'Check back later or switch\nto Spots mode.'}
@@ -236,7 +260,7 @@ export default function DiscoverScreen() {
                 else fetchEvents();
               }}
               style={{
-                backgroundColor: '#FF6B6B',
+                backgroundColor: theme.colors.primary,
                 paddingHorizontal: 24,
                 paddingVertical: 12,
                 borderRadius: 14,
@@ -244,7 +268,7 @@ export default function DiscoverScreen() {
                 marginTop: 8,
               }}
             >
-              <Text style={{ color: '#FFF', fontWeight: '700', fontSize: 15 }}>
+              <Text style={{ color: theme.colors.text, fontWeight: '700', fontSize: 15 }}>
                 Refresh
               </Text>
             </Pressable>

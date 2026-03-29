@@ -1,113 +1,150 @@
-import { useMutation, useQuery } from 'convex/react';
+import { FlashList } from '@shopify/flash-list';
 import { Stack, useLocalSearchParams } from 'expo-router';
-import React, { use, useEffect, useRef, useState } from 'react';
+import React, { use, useCallback, useEffect, useRef, useState } from 'react';
 import {
-  FlatList,
-  KeyboardAvoidingView,
   Pressable,
   Text,
   TextInput,
   View,
 } from 'react-native';
+import { KeyboardStickyView } from 'react-native-keyboard-controller';
 
 import { ChatBubble } from '@/components/chat-bubble';
+import { ReportModal } from '@/components/report-modal';
+import { useAppTheme } from '@/constants/tokens';
 import { AuthContext } from '@/contexts/auth-context';
-import { api } from '@/convex/_generated/api';
-import { type Id } from '@/convex/_generated/dataModel';
+import {
+  getConversation,
+  getMessages,
+  sendMessage as sendChatMessage,
+  subscribeToMessages,
+} from '@/lib/services/chat';
 import { supabase } from '@/lib/supabase';
-import { type Profile } from '@/lib/types';
+import { type Message, type Profile } from '@/lib/types';
 import { Ionicons } from '@expo/vector-icons';
 
 export default function ChatScreen() {
+  const theme = useAppTheme();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { user, profile: myProfile } = use(AuthContext);
-  const conversationId = id as Id<'conversations'>;
 
-  const conversation = useQuery(api.conversations.get, { id: conversationId });
-  const messages = useQuery(api.messages.list, { conversationId });
-  const sendMessage = useMutation(api.messages.send);
-
+  const [messages, setMessages] = useState<Message[]>([]);
   const [text, setText] = useState('');
   const [otherProfile, setOtherProfile] = useState<Profile | null>(null);
-  const flatListRef = useRef<FlatList>(null);
+  const [showReport, setShowReport] = useState(false);
+  const listRef = useRef<any>(null);
 
-  useEffect(() => {
-    if (!conversation || !user) return;
-    const otherUserId = conversation.participant_ids.find((pid) => pid !== user.id);
-    if (otherUserId) {
-      supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', otherUserId)
-        .single()
-        .then(({ data }) => setOtherProfile(data));
+  const loadMessages = useCallback(async () => {
+    if (!id) return;
+    try {
+      const data = await getMessages(id);
+      setMessages(data);
+    } catch {
+      setMessages([]);
     }
-  }, [conversation, user]);
+  }, [id]);
 
   useEffect(() => {
-    if (messages && messages.length > 0) {
+    if (!id || !user) return;
+
+    getConversation(id).then((conv) => {
+      if (!conv) return;
+      const otherUserId = conv.participant_ids.find((pid) => pid !== user.id);
+      if (otherUserId) {
+        supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', otherUserId)
+          .single()
+          .then(({ data }) => setOtherProfile(data));
+      }
+    });
+  }, [id, user]);
+
+  useEffect(() => {
+    loadMessages();
+  }, [loadMessages]);
+
+  useEffect(() => {
+    if (!id) return;
+
+    const channel = subscribeToMessages(id, (newMessage) => {
+      setMessages((prev) => {
+        if (prev.some((m) => m.id === newMessage.id)) return prev;
+        return [...prev, newMessage];
+      });
+    });
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [id]);
+
+  useEffect(() => {
+    if (messages.length > 0) {
       setTimeout(() => {
-        flatListRef.current?.scrollToEnd({ animated: true });
+        listRef.current?.scrollToEnd({ animated: true });
       }, 100);
     }
-  }, [messages?.length]);
+  }, [messages.length]);
 
   const handleSend = async () => {
-    if (!text.trim() || !user) return;
+    if (!text.trim() || !user || !id) return;
 
     const messageText = text.trim();
     setText('');
 
-    await sendMessage({
-      conversationId,
-      senderId: user.id,
-      body: messageText,
-      isAnonymous: myProfile?.is_anonymous ?? false,
-    });
+    try {
+      await sendChatMessage(id, user.id, messageText, myProfile?.is_anonymous ?? false);
+    } catch {
+      setText(messageText);
+    }
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#0D0D0D' }}>
+    <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
       <Stack.Screen
         options={{
           title: otherProfile?.display_name ?? '',
-          headerTintColor: '#FFF',
-          headerStyle: { backgroundColor: '#0D0D0D' },
+          headerTintColor: theme.colors.text,
+          headerStyle: { backgroundColor: theme.colors.background },
+          headerRight: () =>
+            otherProfile ? (
+              <Pressable onPress={() => setShowReport(true)} style={{ padding: 4 }}>
+                <Ionicons name="ellipsis-horizontal" size={22} color={theme.colors.text} />
+              </Pressable>
+            ) : null,
         }}
       />
 
-      <KeyboardAvoidingView
-        behavior="padding"
-        style={{ flex: 1 }}
-        keyboardVerticalOffset={100}
-      >
-        <FlatList
-          ref={flatListRef}
-          data={messages ?? []}
-          keyExtractor={(item) => item._id}
-          contentContainerStyle={{
-            padding: 16,
-            gap: 8,
-            paddingBottom: 8,
-          }}
-          renderItem={({ item }) => (
-            <ChatBubble
-              body={item.body}
-              isOwn={item.sender_id === user?.id}
-              isAnonymous={item.is_anonymous}
-              timestamp={item.created_at}
-            />
-          )}
-          ListEmptyComponent={
-            <View style={{ alignItems: 'center', paddingTop: 60, gap: 8 }}>
-              <Text style={{ fontSize: 32 }}>👋</Text>
-              <Text style={{ color: '#888', fontSize: 15 }}>
-                Say hi to {otherProfile?.display_name ?? 'your match'}!
-              </Text>
-            </View>
-          }
-        />
+      <FlashList
+        ref={listRef}
+        data={messages}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={{
+          padding: 16,
+          paddingBottom: 8,
+        }}
+        ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
+        renderItem={({ item }) => (
+          <ChatBubble
+            body={item.body}
+            isOwn={item.sender_id === user?.id}
+            isAnonymous={item.is_anonymous}
+            timestamp={new Date(item.created_at).getTime()}
+          />
+        )}
+        ListEmptyComponent={
+          <View style={{ alignItems: 'center', paddingTop: 60, gap: 8 }}>
+            <Text style={{ fontSize: 32 }}>👋</Text>
+            <Text style={{ color: theme.colors.textTertiary, fontSize: 15 }}>
+              Say hi to {otherProfile?.display_name ?? 'your match'}!
+            </Text>
+          </View>
+        }
+      />
 
+      <KeyboardStickyView>
         <View
           style={{
             flexDirection: 'row',
@@ -115,26 +152,26 @@ export default function ChatScreen() {
             padding: 12,
             gap: 10,
             borderTopWidth: 1,
-            borderTopColor: '#1A1A1A',
-            backgroundColor: '#0D0D0D',
+            borderTopColor: theme.colors.surface,
+            backgroundColor: theme.colors.background,
           }}
         >
           <TextInput
             style={{
               flex: 1,
-              backgroundColor: '#1A1A1A',
+              backgroundColor: theme.colors.surface,
               borderRadius: 22,
               borderCurve: 'continuous',
               paddingHorizontal: 18,
               paddingVertical: 12,
               fontSize: 16,
-              color: '#FFF',
+              color: theme.colors.text,
               maxHeight: 100,
               borderWidth: 1,
-              borderColor: '#333',
+              borderColor: theme.colors.border,
             }}
             placeholder="Message..."
-            placeholderTextColor="#666"
+            placeholderTextColor={theme.colors.textMuted}
             value={text}
             onChangeText={setText}
             multiline
@@ -146,19 +183,29 @@ export default function ChatScreen() {
               width: 44,
               height: 44,
               borderRadius: 22,
-              backgroundColor: text.trim() ? '#FF6B6B' : '#333',
+              backgroundColor: text.trim() ? theme.colors.primary : theme.colors.border,
               justifyContent: 'center',
               alignItems: 'center',
             }}
           >
             <Ionicons
               name="arrow-forward"
-              style={{ width: 20, height: 20 }}
-              tintColor="#FFF"
+              size={20}
+              color={theme.colors.text}
             />
           </Pressable>
         </View>
-      </KeyboardAvoidingView>
+      </KeyboardStickyView>
+
+      {otherProfile && user && (
+        <ReportModal
+          visible={showReport}
+          onClose={() => setShowReport(false)}
+          reporterId={user.id}
+          reportedUserId={otherProfile.id}
+          reportedUserName={otherProfile.display_name ?? 'User'}
+        />
+      )}
     </View>
   );
 }

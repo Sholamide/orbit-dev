@@ -1,14 +1,18 @@
 import { Text, View } from 'react-native';
 
+import { useAppTheme, palette } from '@/constants/tokens';
+
 export function HotMeter({ score }: { score: number }) {
+  const theme = useAppTheme();
+
   const clampedScore = Math.min(100, Math.max(0, score));
   const isHot = clampedScore >= 85;
 
   const getColor = () => {
-    if (clampedScore >= 90) return '#FF4444';
-    if (clampedScore >= 75) return '#FF8C42';
-    if (clampedScore >= 50) return '#FFD700';
-    return '#888';
+    if (clampedScore >= 90) return theme.colors.danger;
+    if (clampedScore >= 75) return palette.orange;
+    if (clampedScore >= 50) return palette.gold;
+    return theme.colors.textTertiary;
   };
 
   return (

@@ -1,4 +1,5 @@
 import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Text, View, useWindowDimensions } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
@@ -12,6 +13,7 @@ import Animated, {
 
 import { HotMeter } from '@/components/hot-meter';
 import { VibeBadge } from '@/components/vibe-badge';
+import { useAppTheme } from '@/constants/tokens';
 import { type Venue } from '@/lib/types';
 
 const SWIPE_THRESHOLD = 120;
@@ -34,6 +36,7 @@ export function SwipeCard({
   index,
 }: SwipeCardProps) {
   const { width } = useWindowDimensions();
+  const theme = useAppTheme();
   const translateX = useSharedValue(0);
   const translateY = useSharedValue(0);
   const cardScale = useSharedValue(1);
@@ -99,7 +102,7 @@ export function SwipeCard({
             borderRadius: 24,
             borderCurve: 'continuous',
             overflow: 'hidden',
-            backgroundColor: '#1A1A1A',
+            backgroundColor: theme.colors.surface,
             boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)',
           },
           animatedStyle,
@@ -111,19 +114,17 @@ export function SwipeCard({
           contentFit="cover"
         />
 
-        {/* Gradient overlay */}
-        <View
+        <LinearGradient
+          colors={['transparent', 'rgba(0,0,0,0.9)']}
           style={{
             position: 'absolute',
             bottom: 0,
             left: 0,
             right: 0,
             height: '55%',
-            backgroundImage: 'linear-gradient(transparent, rgba(0,0,0,0.9))',
           }}
         />
 
-        {/* Swipe indicators */}
         <Animated.View
           style={[
             {
@@ -131,8 +132,8 @@ export function SwipeCard({
               top: 40,
               left: 24,
               borderWidth: 3,
-              borderColor: '#22CC88',
-              backgroundColor: '#22CC88',
+              borderColor: theme.colors.success,
+              backgroundColor: theme.colors.success,
               borderRadius: 12,
               paddingHorizontal: 16,
               paddingVertical: 8,
@@ -141,7 +142,7 @@ export function SwipeCard({
             likeOpacity,
           ]}
         >
-          <Text style={{ color: '#ffffff', fontSize: 28, fontWeight: '900' }}>
+          <Text style={{ color: theme.colors.text, fontSize: 28, fontWeight: '900' }}>
             FIRE 🔥
           </Text>
         </Animated.View>
@@ -153,8 +154,8 @@ export function SwipeCard({
               top: 40,
               right: 24,
               borderWidth: 3,
-              borderColor: '#FF4444',
-              backgroundColor: '#FF4444',
+              borderColor: theme.colors.danger,
+              backgroundColor: theme.colors.danger,
               borderRadius: 12,
               paddingHorizontal: 16,
               paddingVertical: 8,
@@ -163,12 +164,11 @@ export function SwipeCard({
             nopeOpacity,
           ]}
         >
-          <Text style={{ color: '#ffffff', fontSize: 28, fontWeight: '900' }}>
+          <Text style={{ color: theme.colors.text, fontSize: 28, fontWeight: '900' }}>
             PASS 👎
           </Text>
         </Animated.View>
 
-        {/* Card content */}
         <View
           style={{
             position: 'absolute',
@@ -180,14 +180,14 @@ export function SwipeCard({
           }}
         >
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Text style={{ fontSize: 26, fontWeight: '800', color: '#FFF' }}>
+            <Text style={{ fontSize: 26, fontWeight: '800', color: theme.colors.text }}>
               {venue.name}
             </Text>
             <HotMeter score={venue.hot_score} />
           </View>
 
           <Text
-            style={{ fontSize: 14, color: '#CCC', lineHeight: 20 }}
+            style={{ fontSize: 14, color: theme.colors.textSecondary, lineHeight: 20 }}
             numberOfLines={2}
           >
             {venue.description}
@@ -200,7 +200,7 @@ export function SwipeCard({
           </View>
 
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 }}>
-            <Text style={{ fontSize: 13, color: '#999' }}>📍 {venue.address}</Text>
+            <Text style={{ fontSize: 13, color: theme.colors.textTertiary }}>📍 {venue.address}</Text>
           </View>
         </View>
       </Animated.View>

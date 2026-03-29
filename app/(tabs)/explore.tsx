@@ -1,5 +1,6 @@
 import { HotMeter } from '@/components/hot-meter';
 import { VibeBadge } from '@/components/vibe-badge';
+import { useAppTheme } from '@/constants/tokens';
 import { supabase } from '@/lib/supabase';
 import { type Venue } from '@/lib/types';
 import { FlashList } from "@shopify/flash-list";
@@ -13,6 +14,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const CATEGORIES = ['All', 'club', 'lounge', 'rooftop', 'bar', 'popup'] as const;
 const CATEGORY_LABELS: Record<string, string> = {
@@ -25,18 +27,26 @@ const CATEGORY_LABELS: Record<string, string> = {
 };
 
 export default function ExploreScreen() {
+  const insets = useSafeAreaInsets();
+  const theme = useAppTheme();
   const [venues, setVenues] = useState<Venue[]>([]);
   const [filteredVenues, setFilteredVenues] = useState<Venue[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
 
   useEffect(() => {
     async function load() {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('venues')
         .select('*')
         .order('hot_score', { ascending: false });
+      if (error) {
+        setLoadError(error.message);
+        setLoading(false);
+        return;
+      }
       setVenues(data ?? []);
       setFilteredVenues(data ?? []);
       setLoading(false);
@@ -68,13 +78,13 @@ export default function ExploreScreen() {
     <Link href={`/spot/${item.id}`} asChild>
       <Pressable
         style={{
-          backgroundColor: '#1A1A1A',
+          backgroundColor: theme.colors.surface,
           borderRadius: 18,
           borderCurve: 'continuous',
           overflow: 'hidden',
           marginBottom: 14,
           borderWidth: 1,
-          borderColor: '#2A2A2A',
+          borderColor: theme.colors.surfaceBorder,
         }}
       >
         <Image
@@ -84,12 +94,12 @@ export default function ExploreScreen() {
         />
         <View style={{ padding: 14, gap: 8 }}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Text style={{ fontSize: 18, fontWeight: '700', color: '#FFF', flex: 1 }}>
+            <Text style={{ fontSize: 18, fontWeight: '700', color: theme.colors.text, flex: 1 }}>
               {item.name}
             </Text>
             <HotMeter score={item.hot_score} />
           </View>
-          <Text style={{ fontSize: 13, color: '#999' }}>
+          <Text style={{ fontSize: 13, color: theme.colors.textTertiary }}>
             📍 {item.address}
           </Text>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
@@ -104,41 +114,54 @@ export default function ExploreScreen() {
 
   if (loading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#0D0D0D' }}>
-        <ActivityIndicator size="large" color="#FF6B6B" />
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.colors.background }}>
+        <ActivityIndicator size="large" color={theme.colors.primary} />
+      </View>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.colors.background, padding: 24, gap: 16 }}>
+        <Text style={{ fontSize: 18, fontWeight: '600', color: theme.colors.text }}>
+          Could not load venues
+        </Text>
+        <Text style={{ fontSize: 14, color: theme.colors.textTertiary, textAlign: 'center' }}>
+          {loadError}
+        </Text>
       </View>
     );
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#0D0D0D' }}>
-      <View style={{ paddingTop: 60, paddingHorizontal: 16, gap: 14, paddingBottom: 8 }}>
-        <Text style={{ fontSize: 32, fontWeight: '800', color: '#FFF' }}>Explore</Text>
+    <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
+      <View style={{ paddingTop: insets.top + 16, paddingHorizontal: 16, gap: 14, paddingBottom: 8 }}>
+        <Text style={{ fontSize: 32, fontWeight: '800', color: theme.colors.text }}>Explore</Text>
 
         <TextInput
           style={{
-            backgroundColor: '#1A1A1A',
+            backgroundColor: theme.colors.surface,
             borderRadius: 14,
             borderCurve: 'continuous',
             paddingHorizontal: 16,
             paddingVertical: 12,
             fontSize: 16,
-            color: '#FFF',
+            color: theme.colors.text,
             borderWidth: 1,
-            borderColor: '#333',
+            borderColor: theme.colors.border,
           }}
           placeholder="Search spots, vibes..."
-          placeholderTextColor="#666"
+          placeholderTextColor={theme.colors.textMuted}
           value={search}
           onChangeText={setSearch}
         />
 
-        <FlashList
+        <FlashList<string>
           horizontal
-          data={CATEGORIES}
+          data={[...CATEGORIES]}
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={{ gap: 8 }}
-          renderItem={({ item }: { item: any }) => (
+          renderItem={({ item }) => (
             <Pressable
               onPress={() => {
                 setSelectedCategory(item);
@@ -148,14 +171,14 @@ export default function ExploreScreen() {
                 paddingVertical: 8,
                 borderRadius: 20,
                 borderCurve: 'continuous',
-                backgroundColor: selectedCategory === item ? '#FF6B6B' : '#1A1A1A',
+                backgroundColor: selectedCategory === item ? theme.colors.primary : theme.colors.surface,
                 borderWidth: 1,
-                borderColor: selectedCategory === item ? '#FF6B6B' : '#333',
+                borderColor: selectedCategory === item ? theme.colors.primary : theme.colors.border,
               }}
             >
               <Text
                 style={{
-                  color: selectedCategory === item ? '#FFF' : '#AAA',
+                  color: selectedCategory === item ? theme.colors.text : theme.colors.textSecondary,
                   fontSize: 14,
                   fontWeight: '600',
                 }}
@@ -167,16 +190,16 @@ export default function ExploreScreen() {
         />
       </View>
 
-      <FlashList
+      <FlashList<Venue>
         data={filteredVenues}
         renderItem={renderVenue}
-        keyExtractor={(item: any) => item.id}
+        keyExtractor={(item) => item.id}
         contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 100 }}
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={
           <View style={{ alignItems: 'center', paddingTop: 60, gap: 12 }}>
             <Text style={{ fontSize: 40 }}>🔍</Text>
-            <Text style={{ color: '#888', fontSize: 16 }}>No spots found</Text>
+            <Text style={{ color: theme.colors.textTertiary, fontSize: 16 }}>No spots found</Text>
           </View>
         }
       />

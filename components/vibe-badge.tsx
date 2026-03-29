@@ -1,18 +1,22 @@
 import { Text, View } from 'react-native';
 
+import { useAppTheme, palette } from '@/constants/tokens';
+
 const VIBE_COLORS: Record<string, string> = {
-  Hype: '#FF4444',
-  Chill: '#44BBFF',
-  Exclusive: '#FFD700',
-  'Live Music': '#FF6BFF',
-  Rooftop: '#FF8C42',
-  Underground: '#8B5CF6',
-  'Day Party': '#22CC88',
-  'Late Night': '#6366F1',
+  Hype: palette.red,
+  Chill: palette.cyan,
+  Exclusive: palette.gold,
+  'Live Music': palette.pink,
+  Rooftop: palette.orange,
+  Underground: palette.purple,
+  'Day Party': palette.green,
+  'Late Night': palette.indigo,
 };
 
 export function VibeBadge({ vibe }: { vibe: string }) {
-  const color = VIBE_COLORS[vibe] ?? '#888';
+  const theme = useAppTheme();
+
+  const color = VIBE_COLORS[vibe] ?? theme.colors.textTertiary;
 
   return (
     <View

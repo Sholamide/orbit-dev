@@ -50,7 +50,8 @@
         {
           "photosPermission": "Allow Orbit to access your photos to set your profile picture."
         }
-      ]
+      ],
+      "@sentry/react-native/expo"
     ],
     "experiments": {
       "typedRoutes": true,

@@ -1,21 +1,59 @@
+import * as Sentry from '@sentry/react-native';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { ConvexProvider } from 'convex/react';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect } from 'react';
-import { ActivityIndicator, View } from 'react-native';
+import { use, useEffect } from 'react';
+import { ActivityIndicator, Pressable, Text, View } from 'react-native';
+import { ErrorBoundary } from 'react-error-boundary';
+import { KeyboardProvider } from 'react-native-keyboard-controller';
 import 'react-native-reanimated';
 
 import { AuthContext } from '@/contexts/auth-context';
+import { useAppTheme } from '@/constants/tokens';
 import { useAuth } from '@/hooks/use-auth';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { convex } from '@/lib/convex';
+import { useNotifications } from '@/hooks/use-notifications';
+
+const sentryDsn = process.env.EXPO_PUBLIC_SENTRY_DSN;
+if (sentryDsn) {
+  Sentry.init({
+    dsn: sentryDsn,
+    tracesSampleRate: __DEV__ ? 1.0 : 0.2,
+    enabled: !__DEV__,
+  });
+} else if (!__DEV__) {
+  console.warn('EXPO_PUBLIC_SENTRY_DSN is not set — Sentry disabled.');
+}
 
 SplashScreen.preventAutoHideAsync();
 
+function ErrorFallback({ resetErrorBoundary }: { resetErrorBoundary: () => void }) {
+  const theme = useAppTheme();
+
+  return (
+    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.colors.background }}>
+      <Text style={{ color: theme.colors.text, fontSize: 18, fontWeight: '600', marginBottom: 16 }}>
+        Something went wrong
+      </Text>
+      <Pressable
+        onPress={resetErrorBoundary}
+        style={{
+          backgroundColor: theme.colors.primary,
+          paddingHorizontal: 24,
+          paddingVertical: 12,
+          borderRadius: 8,
+        }}
+      >
+        <Text style={{ color: theme.colors.text, fontSize: 16, fontWeight: '600' }}>Retry</Text>
+      </Pressable>
+    </View>
+  );
+}
+
 function AuthGate({ children }: { children: React.ReactNode }) {
-  const { session, loading, profile } = useAuth();
+  const { session, loading, profile } = use(AuthContext);
+  const theme = useAppTheme();
   const segments = useSegments();
   const router = useRouter();
 
@@ -40,8 +78,8 @@ function AuthGate({ children }: { children: React.ReactNode }) {
 
   if (loading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#0D0D0D' }}>
-        <ActivityIndicator size="large" color="#FF6B6B" />
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.colors.background }}>
+        <ActivityIndicator size="large" color={theme.colors.primary} />
       </View>
     );
   }
@@ -49,8 +87,8 @@ function AuthGate({ children }: { children: React.ReactNode }) {
   const inAuthGroup = segments[0] === '(auth)';
   if (!session && !inAuthGroup) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#0D0D0D' }}>
-        <ActivityIndicator size="large" color="#FF6B6B" />
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.colors.background }}>
+        <ActivityIndicator size="large" color={theme.colors.primary} />
       </View>
     );
   }
@@ -58,9 +96,10 @@ function AuthGate({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-export default function RootLayout() {
+function RootLayout() {
   const colorScheme = useColorScheme();
   const auth = useAuth();
+  useNotifications(auth.user?.id);
 
   useEffect(() => {
     if (!auth.loading) {
@@ -69,30 +108,34 @@ export default function RootLayout() {
   }, [auth.loading]);
 
   return (
-    <AuthContext value={auth}>
-      <ConvexProvider client={convex}>
-        <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-          <AuthGate>
-            <Stack screenOptions={{ headerShown: false }}>
-              <Stack.Screen name="(auth)" />
-              <Stack.Screen name="(tabs)" />
-              <Stack.Screen
-                name="spot/[id]"
-                options={{ headerShown: true, title: '', headerBackButtonDisplayMode: 'minimal' }}
-              />
-              <Stack.Screen
-                name="event/[id]"
-                options={{ headerShown: true, title: '', headerBackButtonDisplayMode: 'minimal' }}
-              />
-              <Stack.Screen
-                name="chat/[id]"
-                options={{ headerShown: true, title: 'Chat', headerBackButtonDisplayMode: 'minimal' }}
-              />
-            </Stack>
-          </AuthGate>
-          <StatusBar style="auto" />
-        </ThemeProvider>
-      </ConvexProvider>
-    </AuthContext>
+    <ErrorBoundary FallbackComponent={ErrorFallback} onError={(error, info) => Sentry.captureException(error, { extra: { componentStack: info.componentStack } })}>
+      <KeyboardProvider>
+        <AuthContext value={auth}>
+          <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+            <AuthGate>
+              <Stack screenOptions={{ headerShown: false }}>
+                <Stack.Screen name="(auth)" />
+                <Stack.Screen name="(tabs)" />
+                <Stack.Screen
+                  name="spot/[id]"
+                  options={{ headerShown: true, title: '', headerBackButtonDisplayMode: 'minimal' }}
+                />
+                <Stack.Screen
+                  name="event/[id]"
+                  options={{ headerShown: true, title: '', headerBackButtonDisplayMode: 'minimal' }}
+                />
+                <Stack.Screen
+                  name="chat/[id]"
+                  options={{ headerShown: true, title: 'Chat', headerBackButtonDisplayMode: 'minimal' }}
+                />
+              </Stack>
+            </AuthGate>
+            <StatusBar style="auto" />
+          </ThemeProvider>
+        </AuthContext>
+      </KeyboardProvider>
+    </ErrorBoundary>
   );
 }
+
+export default Sentry.wrap(RootLayout);

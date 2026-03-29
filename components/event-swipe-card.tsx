@@ -1,4 +1,5 @@
 import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Text, View, useWindowDimensions } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
@@ -11,6 +12,7 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { VibeBadge } from '@/components/vibe-badge';
+import { useAppTheme } from '@/constants/tokens';
 import { type EventWithVenue } from '@/lib/types';
 
 const SWIPE_THRESHOLD = 120;
@@ -33,6 +35,7 @@ export function EventSwipeCard({
   index,
 }: EventSwipeCardProps) {
   const { width } = useWindowDimensions();
+  const theme = useAppTheme();
   const translateX = useSharedValue(0);
   const translateY = useSharedValue(0);
   const cardScale = useSharedValue(1);
@@ -103,7 +106,7 @@ export function EventSwipeCard({
             borderRadius: 24,
             borderCurve: 'continuous',
             overflow: 'hidden',
-            backgroundColor: '#1A1A1A',
+            backgroundColor: theme.colors.surface,
             boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)',
           },
           animatedStyle,
@@ -115,18 +118,17 @@ export function EventSwipeCard({
           contentFit="cover"
         />
 
-        <View
+        <LinearGradient
+          colors={['transparent', 'rgba(0,0,0,0.9)']}
           style={{
             position: 'absolute',
             bottom: 0,
             left: 0,
             right: 0,
             height: '55%',
-            backgroundImage: 'linear-gradient(transparent, rgba(0,0,0,0.9))',
           }}
         />
 
-        {/* Swipe indicators */}
         <Animated.View
           style={[
             {
@@ -134,8 +136,8 @@ export function EventSwipeCard({
               top: 40,
               left: 24,
               borderWidth: 3,
-              borderColor: '#22CC88',
-              backgroundColor: '#22CC88',
+              borderColor: theme.colors.success,
+              backgroundColor: theme.colors.success,
               borderRadius: 12,
               paddingHorizontal: 16,
               paddingVertical: 8,
@@ -144,7 +146,7 @@ export function EventSwipeCard({
             likeOpacity,
           ]}
         >
-          <Text style={{ color: '#ffffff', fontSize: 28, fontWeight: '900' }}>
+          <Text style={{ color: theme.colors.text, fontSize: 28, fontWeight: '900' }}>
             I'M IN 🙋
           </Text>
         </Animated.View>
@@ -156,8 +158,8 @@ export function EventSwipeCard({
               top: 40,
               right: 24,
               borderWidth: 3,
-              borderColor: '#FF4444',
-              backgroundColor: '#FF4444',
+              borderColor: theme.colors.danger,
+              backgroundColor: theme.colors.danger,
               borderRadius: 12,
               paddingHorizontal: 16,
               paddingVertical: 8,
@@ -166,12 +168,11 @@ export function EventSwipeCard({
             nopeOpacity,
           ]}
         >
-          <Text style={{ color: '#ffffff', fontSize: 28, fontWeight: '900' }}>
+          <Text style={{ color: theme.colors.text, fontSize: 28, fontWeight: '900' }}>
             SKIP 👋
           </Text>
         </Animated.View>
 
-        {/* Event info overlay */}
         <View
           style={{
             position: 'absolute',
@@ -182,7 +183,6 @@ export function EventSwipeCard({
             gap: 10,
           }}
         >
-          {/* Time badge */}
           <View
             style={{
               backgroundColor: '#FF6B6B',
@@ -193,18 +193,18 @@ export function EventSwipeCard({
               alignSelf: 'flex-start',
             }}
           >
-            <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '700' }}>
+            <Text style={{ color: theme.colors.text, fontSize: 13, fontWeight: '700' }}>
               {dateStr} • {timeStr}
             </Text>
           </View>
 
-          <Text style={{ fontSize: 26, fontWeight: '800', color: '#FFF' }}>
+          <Text style={{ fontSize: 26, fontWeight: '800', color: theme.colors.text }}>
             {event.title}
           </Text>
 
           {event.description && (
             <Text
-              style={{ fontSize: 14, color: '#CCC', lineHeight: 20 }}
+              style={{ fontSize: 14, color: theme.colors.textSecondary, lineHeight: 20 }}
               numberOfLines={2}
             >
               {event.description}
@@ -218,7 +218,7 @@ export function EventSwipeCard({
           </View>
 
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 }}>
-            <Text style={{ fontSize: 13, color: '#999' }}>
+            <Text style={{ fontSize: 13, color: theme.colors.textTertiary }}>
               📍 {event.venue.name} • {event.venue.address}
             </Text>
           </View>

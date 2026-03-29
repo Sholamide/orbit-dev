@@ -3,16 +3,18 @@ import { useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  KeyboardAvoidingView,
   Pressable,
   Text,
   TextInput,
   View,
 } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 
+import { useAppTheme } from '@/constants/tokens';
 import { supabase } from '@/lib/supabase';
 
 export default function PhoneLoginScreen() {
+  const theme = useAppTheme();
   const [phone, setPhone] = useState('');
   const [loading, setLoading] = useState(false);
   const router = useRouter();
@@ -42,9 +44,9 @@ export default function PhoneLoginScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      behavior="padding"
-      style={{ flex: 1, backgroundColor: '#0D0D0D' }}
+    <KeyboardAwareScrollView
+      style={{ flex: 1, backgroundColor: theme.colors.background }}
+      contentContainerStyle={{ flexGrow: 1 }}
     >
       <View
         style={{
@@ -55,10 +57,10 @@ export default function PhoneLoginScreen() {
         }}
       >
         <View style={{ gap: 8 }}>
-          <Text style={{ fontSize: 28, fontWeight: '700', color: '#FFFFFF' }}>
+          <Text style={{ fontSize: 28, fontWeight: '700', color: theme.colors.text }}>
             What&apos;s your number?
           </Text>
-          <Text style={{ fontSize: 16, color: '#888', lineHeight: 22 }}>
+          <Text style={{ fontSize: 16, color: theme.colors.textTertiary, lineHeight: 22 }}>
             We&apos;ll text you a code to verify it&apos;s really you.
           </Text>
         </View>
@@ -67,25 +69,25 @@ export default function PhoneLoginScreen() {
           style={{
             flexDirection: 'row',
             alignItems: 'center',
-            backgroundColor: '#1A1A1A',
+            backgroundColor: theme.colors.surface,
             borderRadius: 16,
             borderCurve: 'continuous',
             paddingHorizontal: 16,
             paddingVertical: 4,
             borderWidth: 1,
-            borderColor: '#333',
+            borderColor: theme.colors.border,
           }}
         >
-          <Text style={{ fontSize: 18, color: '#888', marginRight: 8 }}>+1</Text>
+          <Text style={{ fontSize: 18, color: theme.colors.textTertiary, marginRight: 8 }}>+1</Text>
           <TextInput
             style={{
               flex: 1,
               fontSize: 18,
-              color: '#FFFFFF',
+              color: theme.colors.text,
               paddingVertical: 16,
             }}
             placeholder="(555) 123-4567"
-            placeholderTextColor="#555"
+            placeholderTextColor={theme.colors.textPlaceholder}
             keyboardType="phone-pad"
             value={phone}
             onChangeText={setPhone}
@@ -97,7 +99,7 @@ export default function PhoneLoginScreen() {
           onPress={handleSendOTP}
           disabled={loading || phone.length < 10}
           style={{
-            backgroundColor: phone.length >= 10 ? '#FF6B6B' : '#333',
+            backgroundColor: phone.length >= 10 ? theme.colors.primary : theme.colors.border,
             paddingVertical: 16,
             borderRadius: 16,
             borderCurve: 'continuous',
@@ -105,14 +107,14 @@ export default function PhoneLoginScreen() {
           }}
         >
           {loading ? (
-            <ActivityIndicator color="#FFFFFF" />
+            <ActivityIndicator color={theme.colors.text} />
           ) : (
-            <Text style={{ color: '#FFFFFF', fontSize: 17, fontWeight: '700' }}>
+            <Text style={{ color: theme.colors.text, fontSize: 17, fontWeight: '700' }}>
               Send Code
             </Text>
           )}
         </Pressable>
       </View>
-    </KeyboardAvoidingView>
+    </KeyboardAwareScrollView>
   );
 }
