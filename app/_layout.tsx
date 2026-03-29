@@ -15,11 +15,16 @@ import { useAuth } from '@/hooks/use-auth';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useNotifications } from '@/hooks/use-notifications';
 
-Sentry.init({
-  dsn: process.env.EXPO_PUBLIC_SENTRY_DSN,
-  tracesSampleRate: __DEV__ ? 1.0 : 0.2,
-  enabled: !__DEV__,
-});
+const sentryDsn = process.env.EXPO_PUBLIC_SENTRY_DSN;
+if (sentryDsn) {
+  Sentry.init({
+    dsn: sentryDsn,
+    tracesSampleRate: __DEV__ ? 1.0 : 0.2,
+    enabled: !__DEV__,
+  });
+} else if (!__DEV__) {
+  console.warn('EXPO_PUBLIC_SENTRY_DSN is not set — Sentry disabled.');
+}
 
 SplashScreen.preventAutoHideAsync();
 

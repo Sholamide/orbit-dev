@@ -75,7 +75,7 @@ export default function VerifyOTPScreen() {
             Enter the code
           </Text>
           <Text style={{ fontSize: 16, color: theme.colors.textTertiary, lineHeight: 22 }}>
-            We sent a 6-digit code to {phone}
+            We sent a 6-digit code to {phone || 'your phone'}
           </Text>
         </View>
 

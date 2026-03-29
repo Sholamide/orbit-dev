@@ -64,19 +64,23 @@ export default function OnboardingScreen() {
       const ext = avatarUri.split('.').pop()?.toLowerCase() ?? 'jpg';
       const fileName = `${user.id}/avatar.${ext}`;
       const contentType = ext === 'png' ? 'image/png' : 'image/jpeg';
-    
-      const response = await fetch(avatarUri);
-      const blob = await response.blob();
-    
-      const { error: uploadError } = await supabase.storage
-        .from('avatars')
-        .upload(fileName, blob, { upsert: true, contentType });
-    
-      if (uploadError) {
-        Alert.alert('Upload Failed', 'Your photo could not be uploaded. You can update it later in your profile.');
-      } else {
-        const { data } = supabase.storage.from('avatars').getPublicUrl(fileName);
-        avatarUrl = data.publicUrl;
+
+      try {
+        const response = await fetch(avatarUri);
+        const blob = await response.blob();
+
+        const { error: uploadError } = await supabase.storage
+          .from('avatars')
+          .upload(fileName, blob, { upsert: true, contentType });
+
+        if (uploadError) {
+          Alert.alert('Upload Failed', 'Your photo could not be uploaded. You can update it later in your profile.');
+        } else {
+          const { data } = supabase.storage.from('avatars').getPublicUrl(fileName);
+          avatarUrl = data.publicUrl;
+        }
+      } catch {
+        Alert.alert('Photo Error', 'Could not read your photo. You can update it later in your profile.');
       }
     }
 

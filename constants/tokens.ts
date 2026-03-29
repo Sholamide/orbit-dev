@@ -31,6 +31,7 @@ type ThemeColors = {
   textTertiary: string;
   textMuted: string;
   textPlaceholder: string;
+  textOnPrimary: string;
   tabBar: string;
   tabBarBorder: string;
   tabBarInactive: string;
@@ -78,6 +79,7 @@ const darkTheme: AppTheme = {
     textTertiary: '#888888',
     textMuted: '#666666',
     textPlaceholder: '#555555',
+    textOnPrimary: '#FFFFFF',
     tabBar: '#0D0D0D',
     tabBarBorder: '#1A1A1A',
     tabBarInactive: '#666',
@@ -118,6 +120,7 @@ const lightTheme: AppTheme = {
     textTertiary: '#888888',
     textMuted: '#AAAAAA',
     textPlaceholder: '#999999',
+    textOnPrimary: '#FFFFFF',
     tabBar: '#FFFFFF',
     tabBarBorder: '#EEE',
     tabBarInactive: '#999',

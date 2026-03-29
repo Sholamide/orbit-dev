@@ -39,6 +39,7 @@ export default function SafetyScreen() {
 
   const loadData = useCallback(async () => {
     if (!user) return;
+    setLoading(true);
     setLoadError(null);
     try {
       const [contactsData, checkinId] = await Promise.all([
@@ -199,6 +200,8 @@ export default function SafetyScreen() {
           <View style={{ gap: 10 }}>
             <Pressable
               onPress={handleMarkSafe}
+              accessibilityRole="button"
+              accessibilityLabel="Mark as safe"
               style={{
                 backgroundColor: theme.colors.success,
                 padding: 16,
@@ -207,13 +210,15 @@ export default function SafetyScreen() {
                 alignItems: 'center',
               }}
             >
-              <Text style={{ fontSize: 16, fontWeight: '700', color: '#FFF' }}>
+              <Text style={{ fontSize: 16, fontWeight: '700', color: theme.colors.textOnPrimary }}>
                 I'm Safe
               </Text>
             </Pressable>
 
             <Pressable
               onPress={handleAlert}
+              accessibilityRole="button"
+              accessibilityLabel="Send alert to trusted contacts"
               style={{
                 backgroundColor: theme.colors.danger,
                 padding: 16,
@@ -222,7 +227,7 @@ export default function SafetyScreen() {
                 alignItems: 'center',
               }}
             >
-              <Text style={{ fontSize: 16, fontWeight: '700', color: '#FFF' }}>
+              <Text style={{ fontSize: 16, fontWeight: '700', color: theme.colors.textOnPrimary }}>
                 Send Alert
               </Text>
             </Pressable>
@@ -231,6 +236,9 @@ export default function SafetyScreen() {
           <Pressable
             onPress={handleCheckin}
             disabled={contacts.length === 0}
+            accessibilityRole="button"
+            accessibilityLabel="Start safety check-in"
+            accessibilityState={{ disabled: contacts.length === 0 }}
             style={{
               backgroundColor: contacts.length > 0 ? theme.colors.primary : theme.colors.border,
               padding: 16,
@@ -239,7 +247,7 @@ export default function SafetyScreen() {
               alignItems: 'center',
             }}
           >
-            <Text style={{ fontSize: 16, fontWeight: '700', color: '#FFF' }}>
+            <Text style={{ fontSize: 16, fontWeight: '700', color: theme.colors.textOnPrimary }}>
               Start Check-in
             </Text>
           </Pressable>
@@ -258,7 +266,11 @@ export default function SafetyScreen() {
           <Text style={{ fontSize: 18, fontWeight: '700', color: theme.colors.text }}>
             Trusted Contacts
           </Text>
-          <Pressable onPress={() => setAddingContact(true)}>
+          <Pressable
+            onPress={() => setAddingContact(true)}
+            accessibilityRole="button"
+            accessibilityLabel="Add trusted contact"
+          >
             <Ionicons name="add-circle" size={28} color={theme.colors.primary} />
           </Pressable>
         </View>
@@ -313,6 +325,8 @@ export default function SafetyScreen() {
                   setNewName('');
                   setNewPhone('');
                 }}
+                accessibilityRole="button"
+                accessibilityLabel="Cancel add contact"
                 style={{
                   flex: 1,
                   padding: 12,
@@ -327,6 +341,9 @@ export default function SafetyScreen() {
               <Pressable
                 onPress={handleAddContact}
                 disabled={!newName.trim() || !newPhone.trim()}
+                accessibilityRole="button"
+                accessibilityLabel="Confirm add contact"
+                accessibilityState={{ disabled: !newName.trim() || !newPhone.trim() }}
                 style={{
                   flex: 1,
                   padding: 12,
@@ -335,7 +352,7 @@ export default function SafetyScreen() {
                   backgroundColor: newName.trim() && newPhone.trim() ? theme.colors.primary : theme.colors.border,
                 }}
               >
-                <Text style={{ color: '#FFF', fontWeight: '600' }}>Add</Text>
+                <Text style={{ color: theme.colors.textOnPrimary, fontWeight: '600' }}>Add</Text>
               </Pressable>
             </View>
           </View>
@@ -393,7 +410,11 @@ export default function SafetyScreen() {
                   {contact.phone}
                 </Text>
               </View>
-              <Pressable onPress={() => handleRemoveContact(contact)}>
+              <Pressable
+                onPress={() => handleRemoveContact(contact)}
+                accessibilityRole="button"
+                accessibilityLabel={`Remove contact ${contact.name}`}
+              >
                 <Ionicons name="trash-outline" size={20} color={theme.colors.danger} />
               </Pressable>
             </View>
