@@ -2,6 +2,7 @@ import { Image } from 'expo-image';
 import { Text, View } from 'react-native';
 
 import { type Profile } from '@/lib/types';
+import { useAppTheme } from '@/constants/tokens';
 
 type AttendeeAvatarProps = {
   profile: Profile;
@@ -9,6 +10,8 @@ type AttendeeAvatarProps = {
 };
 
 export function AttendeeAvatar({ profile, size = 36 }: AttendeeAvatarProps) {
+  const theme = useAppTheme();
+
   if (profile.is_anonymous) {
     return (
       <View
@@ -16,7 +19,7 @@ export function AttendeeAvatar({ profile, size = 36 }: AttendeeAvatarProps) {
           width: size,
           height: size,
           borderRadius: size / 2,
-          backgroundColor: '#2A2A2A',
+          backgroundColor: theme.colors.surfaceBorder,
           justifyContent: 'center',
           alignItems: 'center',
         }}
@@ -35,7 +38,7 @@ export function AttendeeAvatar({ profile, size = 36 }: AttendeeAvatarProps) {
           height: size,
           borderRadius: size / 2,
           borderWidth: 2,
-          borderColor: '#FF6B6B',
+          borderColor: theme.colors.primary,
         }}
       />
     );
@@ -49,12 +52,12 @@ export function AttendeeAvatar({ profile, size = 36 }: AttendeeAvatarProps) {
         width: size,
         height: size,
         borderRadius: size / 2,
-        backgroundColor: '#FF6B6B',
+        backgroundColor: theme.colors.primary,
         justifyContent: 'center',
         alignItems: 'center',
       }}
     >
-      <Text style={{ color: '#FFF', fontWeight: '700', fontSize: size * 0.4 }}>
+      <Text style={{ color: theme.colors.text, fontWeight: '700', fontSize: size * 0.4 }}>
         {initials}
       </Text>
     </View>

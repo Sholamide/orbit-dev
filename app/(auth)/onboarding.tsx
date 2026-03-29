@@ -5,20 +5,21 @@ import React, { use, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  KeyboardAvoidingView,
   Pressable,
-  ScrollView,
   Text,
   TextInput,
   View,
 } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 
+import { useAppTheme } from '@/constants/tokens';
 import { AuthContext } from '@/contexts/auth-context';
 import { supabase } from '@/lib/supabase';
 
 const VIBES = ['Hype', 'Chill', 'Exclusive', 'Live Music', 'Rooftop', 'Underground', 'Day Party', 'Late Night'];
 
 export default function OnboardingScreen() {
+  const theme = useAppTheme();
   const { user, refreshProfile } = use(AuthContext);
   const router = useRouter();
 
@@ -48,6 +49,8 @@ export default function OnboardingScreen() {
   };
 
   const handleComplete = async () => {
+    if (!user) return;
+
     if (!displayName.trim()) {
       Alert.alert('Name Required', 'Please enter your display name.');
       return;
@@ -59,7 +62,7 @@ export default function OnboardingScreen() {
 
     if (avatarUri) {
       const ext = avatarUri.split('.').pop()?.toLowerCase() ?? 'jpg';
-      const fileName = `${user!.id}/avatar.${ext}`;
+      const fileName = `${user.id}/avatar.${ext}`;
       const contentType = ext === 'png' ? 'image/png' : 'image/jpeg';
     
       const response = await fetch(avatarUri);
@@ -78,7 +81,7 @@ export default function OnboardingScreen() {
     }
 
     const { error } = await supabase.from('profiles').upsert({
-      id: user!.id,
+      id: user.id,
       display_name: displayName.trim(),
       bio: bio.trim() || null,
       avatar_url: avatarUrl,
@@ -98,152 +101,148 @@ export default function OnboardingScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      behavior="padding"
-      style={{ flex: 1, backgroundColor: '#0D0D0D' }}
+    <KeyboardAwareScrollView
+      style={{ flex: 1, backgroundColor: theme.colors.background }}
+      contentContainerStyle={{
+        paddingHorizontal: 24,
+        paddingTop: 24,
+        paddingBottom: 60,
+        gap: 28,
+      }}
     >
-      <ScrollView
-        contentContainerStyle={{
-          paddingHorizontal: 24,
-          paddingTop: 24,
-          paddingBottom: 60,
-          gap: 28,
-        }}
-      >
-        <Text style={{ fontSize: 28, fontWeight: '700', color: '#FFFFFF' }}>
-          Set up your profile
-        </Text>
+      <Text style={{ fontSize: 28, fontWeight: '700', color: theme.colors.text }}>
+        Set up your profile
+      </Text>
 
-        <Pressable onPress={pickImage} style={{ alignSelf: 'center' }}>
-          <View
-            style={{
-              width: 100,
-              height: 100,
-              borderRadius: 50,
-              backgroundColor: '#1A1A1A',
-              justifyContent: 'center',
-              alignItems: 'center',
-              overflow: 'hidden',
-              borderWidth: 2,
-              borderColor: '#FF6B6B',
-            }}
-          >
-            {avatarUri ? (
-              <Image
-                source={{ uri: avatarUri }}
-                style={{ width: 100, height: 100 }}
-              />
-            ) : (
-              <Text style={{ color: '#888', fontSize: 13 }}>Add Photo</Text>
-            )}
-          </View>
-        </Pressable>
-
-        <View style={{ gap: 6 }}>
-          <Text style={{ color: '#AAA', fontSize: 14, fontWeight: '600' }}>
-            Display Name
-          </Text>
-          <TextInput
-            style={{
-              backgroundColor: '#1A1A1A',
-              borderRadius: 14,
-              borderCurve: 'continuous',
-              paddingHorizontal: 16,
-              paddingVertical: 14,
-              fontSize: 16,
-              color: '#FFFFFF',
-              borderWidth: 1,
-              borderColor: '#333',
-            }}
-            placeholder="What should people call you?"
-            placeholderTextColor="#555"
-            value={displayName}
-            onChangeText={setDisplayName}
-          />
-        </View>
-
-        <View style={{ gap: 6 }}>
-          <Text style={{ color: '#AAA', fontSize: 14, fontWeight: '600' }}>
-            Bio (optional)
-          </Text>
-          <TextInput
-            style={{
-              backgroundColor: '#1A1A1A',
-              borderRadius: 14,
-              borderCurve: 'continuous',
-              paddingHorizontal: 16,
-              paddingVertical: 14,
-              fontSize: 16,
-              color: '#FFFFFF',
-              borderWidth: 1,
-              borderColor: '#333',
-              minHeight: 80,
-            }}
-            placeholder="Tell people about yourself..."
-            placeholderTextColor="#555"
-            value={bio}
-            onChangeText={setBio}
-            multiline
-          />
-        </View>
-
-        <View style={{ gap: 12 }}>
-          <Text style={{ color: '#AAA', fontSize: 14, fontWeight: '600' }}>
-            What&apos;s your vibe?
-          </Text>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
-            {VIBES.map((vibe) => {
-              const selected = selectedVibes.includes(vibe);
-              return (
-                <Pressable
-                  key={vibe}
-                  onPress={() => toggleVibe(vibe)}
-                  style={{
-                    paddingHorizontal: 16,
-                    paddingVertical: 10,
-                    borderRadius: 20,
-                    borderCurve: 'continuous',
-                    backgroundColor: selected ? '#FF6B6B' : '#1A1A1A',
-                    borderWidth: 1,
-                    borderColor: selected ? '#FF6B6B' : '#333',
-                  }}
-                >
-                  <Text
-                    style={{
-                      color: selected ? '#FFF' : '#AAA',
-                      fontSize: 14,
-                      fontWeight: '600',
-                    }}
-                  >
-                    {vibe}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
-        </View>
-
-        <Pressable
-          onPress={handleComplete}
-          disabled={loading || !displayName.trim()}
+      <Pressable onPress={pickImage} style={{ alignSelf: 'center' }}>
+        <View
           style={{
-            backgroundColor: displayName.trim() ? '#FF6B6B' : '#333',
-            paddingVertical: 16,
-            borderRadius: 16,
-            borderCurve: 'continuous',
+            width: 100,
+            height: 100,
+            borderRadius: 50,
+            backgroundColor: theme.colors.surface,
+            justifyContent: 'center',
             alignItems: 'center',
-            marginTop: 8,
+            overflow: 'hidden',
+            borderWidth: 2,
+            borderColor: theme.colors.primary,
           }}
         >
-          {loading ? (
-            <ActivityIndicator color="#FFFFFF" />
+          {avatarUri ? (
+            <Image
+              source={{ uri: avatarUri }}
+              style={{ width: 100, height: 100 }}
+            />
           ) : (
-            <Text style={{ color: '#FFFFFF', fontSize: 17, fontWeight: '700' }}>
-              Let&apos;s Go
-            </Text>
+            <Text style={{ color: theme.colors.textTertiary, fontSize: 13 }}>Add Photo</Text>
           )}
-        </Pressable>
-      </ScrollView>
-    </KeyboardAvoidingView>
+        </View>
+      </Pressable>
+
+      <View style={{ gap: 6 }}>
+        <Text style={{ color: theme.colors.textSecondary, fontSize: 14, fontWeight: '600' }}>
+          Display Name
+        </Text>
+        <TextInput
+          style={{
+            backgroundColor: theme.colors.surface,
+            borderRadius: 14,
+            borderCurve: 'continuous',
+            paddingHorizontal: 16,
+            paddingVertical: 14,
+            fontSize: 16,
+            color: theme.colors.text,
+            borderWidth: 1,
+            borderColor: theme.colors.border,
+          }}
+          placeholder="What should people call you?"
+          placeholderTextColor={theme.colors.textPlaceholder}
+          value={displayName}
+          onChangeText={setDisplayName}
+        />
+      </View>
+
+      <View style={{ gap: 6 }}>
+        <Text style={{ color: theme.colors.textSecondary, fontSize: 14, fontWeight: '600' }}>
+          Bio (optional)
+        </Text>
+        <TextInput
+          style={{
+            backgroundColor: theme.colors.surface,
+            borderRadius: 14,
+            borderCurve: 'continuous',
+            paddingHorizontal: 16,
+            paddingVertical: 14,
+            fontSize: 16,
+            color: theme.colors.text,
+            borderWidth: 1,
+            borderColor: theme.colors.border,
+            minHeight: 80,
+          }}
+          placeholder="Tell people about yourself..."
+          placeholderTextColor={theme.colors.textPlaceholder}
+          value={bio}
+          onChangeText={setBio}
+          multiline
+        />
+      </View>
+
+      <View style={{ gap: 12 }}>
+        <Text style={{ color: theme.colors.textSecondary, fontSize: 14, fontWeight: '600' }}>
+          What&apos;s your vibe?
+        </Text>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
+          {VIBES.map((vibe) => {
+            const selected = selectedVibes.includes(vibe);
+            return (
+              <Pressable
+                key={vibe}
+                onPress={() => toggleVibe(vibe)}
+                style={{
+                  paddingHorizontal: 16,
+                  paddingVertical: 10,
+                  borderRadius: 20,
+                  borderCurve: 'continuous',
+                  backgroundColor: selected ? theme.colors.primary : theme.colors.surface,
+                  borderWidth: 1,
+                  borderColor: selected ? theme.colors.primary : theme.colors.border,
+                }}
+              >
+                <Text
+                  style={{
+                    color: selected ? theme.colors.text : theme.colors.textSecondary,
+                    fontSize: 14,
+                    fontWeight: '600',
+                  }}
+                >
+                  {vibe}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      </View>
+
+      <Pressable
+        onPress={handleComplete}
+        disabled={loading || !displayName.trim()}
+        style={{
+          backgroundColor: displayName.trim() ? theme.colors.primary : theme.colors.border,
+          paddingVertical: 16,
+          borderRadius: 16,
+          borderCurve: 'continuous',
+          alignItems: 'center',
+          marginTop: 8,
+        }}
+      >
+        {loading ? (
+          <ActivityIndicator color={theme.colors.text} />
+        ) : (
+          <Text style={{ color: theme.colors.text, fontSize: 17, fontWeight: '700' }}>
+            Let&apos;s Go
+          </Text>
+        )}
+      </Pressable>
+    </KeyboardAwareScrollView>
   );
 }

@@ -13,10 +13,12 @@ import {
 import { AttendeeAvatar } from '@/components/attendee-avatar';
 import { HotMeter } from '@/components/hot-meter';
 import { VibeBadge } from '@/components/vibe-badge';
+import { useAppTheme } from '@/constants/tokens';
 import { supabase } from '@/lib/supabase';
 import { type Event, type Profile, type Venue } from '@/lib/types';
 
 export default function SpotDetailScreen() {
+  const theme = useAppTheme();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { width } = useWindowDimensions();
 
@@ -36,6 +38,11 @@ export default function SpotDetailScreen() {
           .gte('starts_at', new Date().toISOString())
           .order('starts_at'),
       ]);
+
+      if (venueRes.error || eventsRes.error) {
+        setLoading(false);
+        return;
+      }
 
       setVenue(venueRes.data);
       setEvents(eventsRes.data ?? []);
@@ -65,19 +72,19 @@ export default function SpotDetailScreen() {
 
   if (loading || !venue) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#0D0D0D' }}>
-        <ActivityIndicator size="large" color="#FF6B6B" />
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.colors.background }}>
+        <ActivityIndicator size="large" color={theme.colors.primary} />
       </View>
     );
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#0D0D0D' }}>
+    <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
       <Stack.Screen
         options={{
           title: venue.name,
           headerTransparent: true,
-          headerTintColor: '#FFF',
+          headerTintColor: theme.colors.text,
           headerStyle: { backgroundColor: 'transparent' },
         }}
       />
@@ -90,29 +97,27 @@ export default function SpotDetailScreen() {
         />
 
         <View style={{ padding: 20, gap: 20 }}>
-          {/* Header */}
           <View style={{ gap: 8 }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Text style={{ fontSize: 28, fontWeight: '800', color: '#FFF', flex: 1 }}>
+              <Text style={{ fontSize: 28, fontWeight: '800', color: theme.colors.text, flex: 1 }}>
                 {venue.name}
               </Text>
               <HotMeter score={venue.hot_score} />
             </View>
 
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <Text style={{ fontSize: 14, color: '#999' }}>
+              <Text style={{ fontSize: 14, color: theme.colors.textTertiary }}>
                 📍 {venue.address}
               </Text>
             </View>
 
-            <Text style={{ fontSize: 15, color: '#CCC', lineHeight: 22 }}>
+            <Text style={{ fontSize: 15, color: theme.colors.textSecondary, lineHeight: 22 }}>
               {venue.description}
             </Text>
           </View>
 
-          {/* Vibe Tags */}
           <View style={{ gap: 8 }}>
-            <Text style={{ fontSize: 16, fontWeight: '700', color: '#FFF' }}>Vibe</Text>
+            <Text style={{ fontSize: 16, fontWeight: '700', color: theme.colors.text }}>Vibe</Text>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
               {venue.vibe_tags?.map((vibe) => (
                 <VibeBadge key={vibe} vibe={vibe} />
@@ -120,29 +125,28 @@ export default function SpotDetailScreen() {
             </View>
           </View>
 
-          {/* Upcoming Events */}
           {events.length > 0 && (
             <View style={{ gap: 12 }}>
-              <Text style={{ fontSize: 16, fontWeight: '700', color: '#FFF' }}>
+              <Text style={{ fontSize: 16, fontWeight: '700', color: theme.colors.text }}>
                 Upcoming Events
               </Text>
               {events.map((event) => (
                 <Link key={event.id} href={`/event/${event.id}`} asChild>
                   <Pressable
                     style={{
-                      backgroundColor: '#1A1A1A',
+                      backgroundColor: theme.colors.surface,
                       borderRadius: 16,
                       borderCurve: 'continuous',
                       padding: 16,
                       gap: 6,
                       borderWidth: 1,
-                      borderColor: '#2A2A2A',
+                      borderColor: theme.colors.surfaceBorder,
                     }}
                   >
-                    <Text style={{ fontSize: 17, fontWeight: '700', color: '#FFF' }}>
+                    <Text style={{ fontSize: 17, fontWeight: '700', color: theme.colors.text }}>
                       {event.title}
                     </Text>
-                    <Text style={{ fontSize: 13, color: '#888' }}>
+                    <Text style={{ fontSize: 13, color: theme.colors.textTertiary }}>
                       {new Date(event.starts_at).toLocaleDateString('en-US', {
                         weekday: 'short',
                         month: 'short',
@@ -153,7 +157,7 @@ export default function SpotDetailScreen() {
                     </Text>
                     {event.description && (
                       <Text
-                        style={{ fontSize: 14, color: '#AAA', lineHeight: 20 }}
+                        style={{ fontSize: 14, color: theme.colors.textSecondary, lineHeight: 20 }}
                         numberOfLines={2}
                       >
                         {event.description}
@@ -165,10 +169,9 @@ export default function SpotDetailScreen() {
             </View>
           )}
 
-          {/* Who's Going */}
           {attendees.length > 0 && (
             <View style={{ gap: 12 }}>
-              <Text style={{ fontSize: 16, fontWeight: '700', color: '#FFF' }}>
+              <Text style={{ fontSize: 16, fontWeight: '700', color: theme.colors.text }}>
                 Who&apos;s Going ({attendees.length})
               </Text>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
@@ -176,7 +179,7 @@ export default function SpotDetailScreen() {
                   <View key={profile.id} style={{ alignItems: 'center', gap: 4, width: 56 }}>
                     <AttendeeAvatar profile={profile} size={44} />
                     <Text
-                      style={{ fontSize: 11, color: '#AAA', textAlign: 'center' }}
+                      style={{ fontSize: 11, color: theme.colors.textSecondary, textAlign: 'center' }}
                       numberOfLines={1}
                     >
                       {profile.is_anonymous ? 'Ghost' : profile.display_name ?? '?'}
@@ -187,10 +190,9 @@ export default function SpotDetailScreen() {
             </View>
           )}
 
-          {/* Gallery */}
           {venue.gallery_urls && venue.gallery_urls.length > 0 && (
             <View style={{ gap: 12 }}>
-              <Text style={{ fontSize: 16, fontWeight: '700', color: '#FFF' }}>Gallery</Text>
+              <Text style={{ fontSize: 16, fontWeight: '700', color: theme.colors.text }}>Gallery</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ gap: 8 }}>
                 {venue.gallery_urls.map((url, i) => (
                   <Image
@@ -200,7 +202,6 @@ export default function SpotDetailScreen() {
                       width: 200,
                       height: 150,
                       borderRadius: 12,
-                      // borderCurve: 'continuous',
                       marginRight: 10,
                     }}
                     contentFit="cover"

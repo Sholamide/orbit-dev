@@ -3,16 +3,18 @@ import { useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  KeyboardAvoidingView,
   Pressable,
   Text,
   TextInput,
   View,
 } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 
+import { useAppTheme } from '@/constants/tokens';
 import { supabase } from '@/lib/supabase';
 
 export default function VerifyOTPScreen() {
+  const theme = useAppTheme();
   const { phone } = useLocalSearchParams<{ phone: string }>();
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
@@ -50,9 +52,9 @@ export default function VerifyOTPScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      behavior="padding"
-      style={{ flex: 1, backgroundColor: '#0D0D0D' }}
+    <KeyboardAwareScrollView
+      style={{ flex: 1, backgroundColor: theme.colors.background }}
+      contentContainerStyle={{ flexGrow: 1 }}
     >
       <View
         style={{
@@ -63,30 +65,30 @@ export default function VerifyOTPScreen() {
         }}
       >
         <View style={{ gap: 8 }}>
-          <Text style={{ fontSize: 28, fontWeight: '700', color: '#FFFFFF' }}>
+          <Text style={{ fontSize: 28, fontWeight: '700', color: theme.colors.text }}>
             Enter the code
           </Text>
-          <Text style={{ fontSize: 16, color: '#888', lineHeight: 22 }}>
+          <Text style={{ fontSize: 16, color: theme.colors.textTertiary, lineHeight: 22 }}>
             We sent a 6-digit code to {phone}
           </Text>
         </View>
 
         <TextInput
           style={{
-            backgroundColor: '#1A1A1A',
+            backgroundColor: theme.colors.surface,
             borderRadius: 16,
             borderCurve: 'continuous',
             paddingHorizontal: 16,
             paddingVertical: 18,
             fontSize: 24,
-            color: '#FFFFFF',
+            color: theme.colors.text,
             textAlign: 'center',
             letterSpacing: 12,
             borderWidth: 1,
-            borderColor: '#333',
+            borderColor: theme.colors.border,
           }}
           placeholder="000000"
-          placeholderTextColor="#555"
+          placeholderTextColor={theme.colors.textPlaceholder}
           keyboardType="number-pad"
           maxLength={6}
           value={code}
@@ -98,7 +100,7 @@ export default function VerifyOTPScreen() {
           onPress={handleVerify}
           disabled={loading || code.length !== 6}
           style={{
-            backgroundColor: code.length === 6 ? '#FF6B6B' : '#333',
+            backgroundColor: code.length === 6 ? theme.colors.primary : theme.colors.border,
             paddingVertical: 16,
             borderRadius: 16,
             borderCurve: 'continuous',
@@ -106,20 +108,20 @@ export default function VerifyOTPScreen() {
           }}
         >
           {loading ? (
-            <ActivityIndicator color="#FFFFFF" />
+            <ActivityIndicator color={theme.colors.text} />
           ) : (
-            <Text style={{ color: '#FFFFFF', fontSize: 17, fontWeight: '700' }}>
+            <Text style={{ color: theme.colors.text, fontSize: 17, fontWeight: '700' }}>
               Verify
             </Text>
           )}
         </Pressable>
 
         <Pressable onPress={handleResend} style={{ alignItems: 'center' }}>
-          <Text style={{ color: '#FF6B6B', fontSize: 15, fontWeight: '600' }}>
+          <Text style={{ color: theme.colors.primary, fontSize: 15, fontWeight: '600' }}>
             Resend Code
           </Text>
         </Pressable>
       </View>
-    </KeyboardAvoidingView>
+    </KeyboardAwareScrollView>
   );
 }

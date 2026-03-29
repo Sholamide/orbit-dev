@@ -1,4 +1,3 @@
-import { useMutation } from 'convex/react';
 import { File as ExpoFile } from 'expo-file-system';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
@@ -13,11 +12,13 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AttendeeAvatar } from '@/components/attendee-avatar';
 import { VibeBadge } from '@/components/vibe-badge';
+import { useAppTheme } from '@/constants/tokens';
 import { AuthContext } from '@/contexts/auth-context';
-import { api } from '@/convex/_generated/api';
+import { createConversation } from '@/lib/services/chat';
 import { supabase } from '@/lib/supabase';
 import { type CompanionRequest, type Profile } from '@/lib/types';
 
@@ -26,8 +27,8 @@ type RequestWithProfile = CompanionRequest & { sender_profile?: Profile; event_t
 export default function ProfileScreen() {
   const { user, profile, signOut, refreshProfile } = use(AuthContext);
   const router = useRouter();
-  const createConversation = useMutation(api.conversations.create);
-
+  const insets = useSafeAreaInsets();
+  const theme = useAppTheme();
   const [editing, setEditing] = useState(false);
   const [displayName, setDisplayName] = useState('');
   const [bio, setBio] = useState('');
@@ -46,14 +47,14 @@ export default function ProfileScreen() {
   const loadRequests = useCallback(async () => {
     if (!user) return;
 
-    const { data: requests } = await supabase
+    const { data: requests, error: requestsError } = await supabase
       .from('companion_requests')
       .select('*')
       .eq('receiver_id', user.id)
       .eq('status', 'pending')
       .order('created_at', { ascending: false });
 
-    if (!requests || requests.length === 0) {
+    if (requestsError || !requests || requests.length === 0) {
       setPendingRequests([]);
       return;
     }
@@ -139,21 +140,27 @@ export default function ProfileScreen() {
   };
 
   const handleRequestResponse = async (requestId: string, senderId: string, eventId: string, accept: boolean) => {
-    await supabase
+    const { error } = await supabase
       .from('companion_requests')
       .update({ status: accept ? 'accepted' : 'declined' })
       .eq('id', requestId);
 
-    if (accept && user) {
-      const convId = await createConversation({
-        participant_ids: [user.id, senderId],
-        event_id: eventId,
-      });
+    if (error) {
+      Alert.alert('Error', error.message);
+      return;
+    }
 
-      Alert.alert('Matched! 🎉', 'You can now chat with them.', [
-        { text: 'Chat Now', onPress: () => router.push(`/chat/${convId}`) },
-        { text: 'Later' },
-      ]);
+    if (accept && user) {
+      try {
+        const convId = await createConversation([user.id, senderId], eventId);
+
+        Alert.alert('Matched!', 'You can now chat with them.', [
+          { text: 'Chat Now', onPress: () => router.push(`/chat/${convId}`) },
+          { text: 'Later' },
+        ]);
+      } catch {
+        Alert.alert('Error', 'Could not create conversation. Please try again.');
+      }
     }
 
     loadRequests();
@@ -161,18 +168,18 @@ export default function ProfileScreen() {
 
   if (!profile) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#0D0D0D' }}>
-        <ActivityIndicator size="large" color="#FF6B6B" />
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.colors.background }}>
+        <ActivityIndicator size="large" color={theme.colors.primary} />
       </View>
     );
   }
 
   return (
     <ScrollView
-      style={{ flex: 1, backgroundColor: '#0D0D0D' }}
-      contentContainerStyle={{ paddingTop: 60, paddingHorizontal: 16, paddingBottom: 100, gap: 24 }}
+      style={{ flex: 1, backgroundColor: theme.colors.background }}
+      contentContainerStyle={{ paddingTop: insets.top + 16, paddingHorizontal: 16, paddingBottom: 100, gap: 24 }}
     >
-      <Text style={{ fontSize: 32, fontWeight: '800', color: '#FFF' }}>Profile</Text>
+      <Text style={{ fontSize: 32, fontWeight: '800', color: theme.colors.text }}>Profile</Text>
 
       {/* Avatar & Name */}
       <View style={{ alignItems: 'center', gap: 12 }}>
@@ -186,7 +193,7 @@ export default function ProfileScreen() {
               width: 28,
               height: 28,
               borderRadius: 14,
-              backgroundColor: '#FF6B6B',
+              backgroundColor: theme.colors.primary,
               justifyContent: 'center',
               alignItems: 'center',
             }}
@@ -194,11 +201,11 @@ export default function ProfileScreen() {
             <Text style={{ fontSize: 14 }}>📷</Text>
           </View>
         </Pressable>
-        <Text style={{ fontSize: 22, fontWeight: '700', color: '#FFF' }}>
+        <Text style={{ fontSize: 22, fontWeight: '700', color: theme.colors.text }}>
           {profile.display_name}
         </Text>
         {profile.bio && (
-          <Text style={{ fontSize: 14, color: '#999', textAlign: 'center' }}>
+          <Text style={{ fontSize: 14, color: theme.colors.textTertiary, textAlign: 'center' }}>
             {profile.bio}
           </Text>
         )}
@@ -214,20 +221,20 @@ export default function ProfileScreen() {
       {/* Companion Requests */}
       {pendingRequests.length > 0 && (
         <View style={{ gap: 12 }}>
-          <Text style={{ fontSize: 18, fontWeight: '700', color: '#FFF' }}>
+          <Text style={{ fontSize: 18, fontWeight: '700', color: theme.colors.text }}>
             Companion Requests ({pendingRequests.length})
           </Text>
           {pendingRequests.map((req) => (
             <View
               key={req.id}
               style={{
-                backgroundColor: '#1A1A1A',
+                backgroundColor: theme.colors.surface,
                 borderRadius: 16,
                 borderCurve: 'continuous',
                 padding: 14,
                 gap: 10,
                 borderWidth: 1,
-                borderColor: '#2A2A2A',
+                borderColor: theme.colors.surfaceBorder,
               }}
             >
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
@@ -235,10 +242,10 @@ export default function ProfileScreen() {
                   <AttendeeAvatar profile={req.sender_profile} size={40} />
                 )}
                 <View style={{ flex: 1 }}>
-                  <Text style={{ color: '#FFF', fontWeight: '600', fontSize: 15 }}>
+                  <Text style={{ color: theme.colors.text, fontWeight: '600', fontSize: 15 }}>
                     {req.sender_profile?.display_name ?? 'Someone'}
                   </Text>
-                  <Text style={{ color: '#888', fontSize: 13 }}>
+                  <Text style={{ color: theme.colors.textTertiary, fontSize: 13 }}>
                     wants to go to {req.event_title ?? 'an event'} with you
                   </Text>
                 </View>
@@ -248,27 +255,27 @@ export default function ProfileScreen() {
                   onPress={() => handleRequestResponse(req.id, req.sender_id, req.event_id, true)}
                   style={{
                     flex: 1,
-                    backgroundColor: '#22CC88',
+                    backgroundColor: theme.colors.success,
                     paddingVertical: 10,
                     borderRadius: 12,
                     borderCurve: 'continuous',
                     alignItems: 'center',
                   }}
                 >
-                  <Text style={{ color: '#FFF', fontWeight: '700' }}>Accept</Text>
+                  <Text style={{ color: theme.colors.text, fontWeight: '700' }}>Accept</Text>
                 </Pressable>
                 <Pressable
                   onPress={() => handleRequestResponse(req.id, req.sender_id, req.event_id, false)}
                   style={{
                     flex: 1,
-                    backgroundColor: '#333',
+                    backgroundColor: theme.colors.border,
                     paddingVertical: 10,
                     borderRadius: 12,
                     borderCurve: 'continuous',
                     alignItems: 'center',
                   }}
                 >
-                  <Text style={{ color: '#AAA', fontWeight: '700' }}>Decline</Text>
+                  <Text style={{ color: theme.colors.textSecondary, fontWeight: '700' }}>Decline</Text>
                 </Pressable>
               </View>
             </View>
@@ -279,24 +286,24 @@ export default function ProfileScreen() {
       {/* Edit Profile */}
       <View
         style={{
-          backgroundColor: '#1A1A1A',
+          backgroundColor: theme.colors.surface,
           borderRadius: 18,
           borderCurve: 'continuous',
           padding: 18,
           gap: 16,
           borderWidth: 1,
-          borderColor: '#2A2A2A',
+          borderColor: theme.colors.surfaceBorder,
         }}
       >
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Text style={{ fontSize: 16, fontWeight: '700', color: '#FFF' }}>
+          <Text style={{ fontSize: 16, fontWeight: '700', color: theme.colors.text }}>
             Edit Profile
           </Text>
           <Pressable onPress={() => (editing ? handleSave() : setEditing(true))}>
             {saving ? (
-              <ActivityIndicator size="small" color="#FF6B6B" />
+              <ActivityIndicator size="small" color={theme.colors.primary} />
             ) : (
-              <Text style={{ color: '#FF6B6B', fontWeight: '600' }}>
+              <Text style={{ color: theme.colors.primary, fontWeight: '600' }}>
                 {editing ? 'Save' : 'Edit'}
               </Text>
             )}
@@ -306,36 +313,36 @@ export default function ProfileScreen() {
         {editing && (
           <>
             <View style={{ gap: 6 }}>
-              <Text style={{ color: '#888', fontSize: 13 }}>Display Name</Text>
+              <Text style={{ color: theme.colors.textTertiary, fontSize: 13 }}>Display Name</Text>
               <TextInput
                 style={{
-                  backgroundColor: '#0D0D0D',
+                  backgroundColor: theme.colors.background,
                   borderRadius: 12,
                   borderCurve: 'continuous',
                   paddingHorizontal: 14,
                   paddingVertical: 12,
                   fontSize: 15,
-                  color: '#FFF',
+                  color: theme.colors.text,
                   borderWidth: 1,
-                  borderColor: '#333',
+                  borderColor: theme.colors.border,
                 }}
                 value={displayName}
                 onChangeText={setDisplayName}
               />
             </View>
             <View style={{ gap: 6 }}>
-              <Text style={{ color: '#888', fontSize: 13 }}>Bio</Text>
+              <Text style={{ color: theme.colors.textTertiary, fontSize: 13 }}>Bio</Text>
               <TextInput
                 style={{
-                  backgroundColor: '#0D0D0D',
+                  backgroundColor: theme.colors.background,
                   borderRadius: 12,
                   borderCurve: 'continuous',
                   paddingHorizontal: 14,
                   paddingVertical: 12,
                   fontSize: 15,
-                  color: '#FFF',
+                  color: theme.colors.text,
                   borderWidth: 1,
-                  borderColor: '#333',
+                  borderColor: theme.colors.border,
                   minHeight: 70,
                 }}
                 value={bio}
@@ -350,38 +357,55 @@ export default function ProfileScreen() {
       {/* Ghost Mode */}
       <View
         style={{
-          backgroundColor: '#1A1A1A',
+          backgroundColor: theme.colors.surface,
           borderRadius: 18,
           borderCurve: 'continuous',
           padding: 18,
-          flexDirection: 'row',
-          alignItems: 'center',
-          justifyContent: 'space-between',
+          gap: 12,
           borderWidth: 1,
-          borderColor: '#2A2A2A',
+          borderColor: theme.colors.surfaceBorder,
         }}
       >
-        <View style={{ flex: 1, gap: 4 }}>
-          <Text style={{ fontSize: 16, fontWeight: '700', color: '#FFF' }}>
-            👻 Ghost Mode
-          </Text>
-          <Text style={{ fontSize: 13, color: '#888' }}>
-            Browse anonymously. Others see &quot;Someone mysterious&quot; instead of your name.
-          </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          <View style={{ flex: 1, gap: 4 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <Text style={{ fontSize: 16, fontWeight: '700', color: theme.colors.text }}>
+                👻 Ghost Mode
+              </Text>
+              <View
+                style={{
+                  backgroundColor: theme.colors.primarySubtle,
+                  paddingHorizontal: 8,
+                  paddingVertical: 2,
+                  borderRadius: 6,
+                  borderWidth: 1,
+                  borderColor: theme.colors.primaryBorder,
+                }}
+              >
+                <Text style={{ fontSize: 11, fontWeight: '700', color: theme.colors.primary }}>
+                  PREMIUM
+                </Text>
+              </View>
+            </View>
+            <Text style={{ fontSize: 13, color: theme.colors.textTertiary }}>
+              Browse anonymously. Others see &quot;Someone mysterious&quot; instead of your name.
+            </Text>
+          </View>
+          <Switch
+            value={isAnonymous}
+            onValueChange={async (val) => {
+              if (!user) return;
+              setIsAnonymous(val);
+              await supabase
+                .from('profiles')
+                .update({ is_anonymous: val })
+                .eq('id', user.id);
+              refreshProfile();
+            }}
+            trackColor={{ false: theme.colors.border, true: theme.colors.primaryMuted }}
+            thumbColor={isAnonymous ? theme.colors.primary : theme.colors.textTertiary}
+          />
         </View>
-        <Switch
-          value={isAnonymous}
-          onValueChange={async (val) => {
-            setIsAnonymous(val);
-            await supabase
-              .from('profiles')
-              .update({ is_anonymous: val })
-              .eq('id', user!.id);
-            refreshProfile();
-          }}
-          trackColor={{ false: '#333', true: '#FF6B6B88' }}
-          thumbColor={isAnonymous ? '#FF6B6B' : '#888'}
-        />
       </View>
 
       {/* Sign Out */}
@@ -393,16 +417,16 @@ export default function ProfileScreen() {
           ]);
         }}
         style={{
-          backgroundColor: '#1A1A1A',
+          backgroundColor: theme.colors.surface,
           borderRadius: 16,
           borderCurve: 'continuous',
           paddingVertical: 16,
           alignItems: 'center',
           borderWidth: 1,
-          borderColor: '#333',
+          borderColor: theme.colors.border,
         }}
       >
-        <Text style={{ color: '#FF4444', fontSize: 16, fontWeight: '600' }}>
+        <Text style={{ color: theme.colors.danger, fontSize: 16, fontWeight: '600' }}>
           Sign Out
         </Text>
       </Pressable>

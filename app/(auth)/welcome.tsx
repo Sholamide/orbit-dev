@@ -1,9 +1,13 @@
 import { Link } from 'expo-router';
 import { Pressable, Text, View } from 'react-native';
 
+import { useAppTheme } from '@/constants/tokens';
+
 export default function WelcomeScreen() {
+  const theme = useAppTheme();
+
   return (
-    <View style={{ flex: 1, backgroundColor: '#0D0D0D' }}>
+    <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
       <View
         style={{
           flex: 1,
@@ -19,7 +23,7 @@ export default function WelcomeScreen() {
             style={{
               fontSize: 48,
               fontWeight: '800',
-              color: '#FFFFFF',
+              color: theme.colors.text,
               letterSpacing: -1,
             }}
           >
@@ -28,7 +32,7 @@ export default function WelcomeScreen() {
           <Text
             style={{
               fontSize: 18,
-              color: '#AAAAAA',
+              color: theme.colors.textSecondary,
               textAlign: 'center',
               lineHeight: 26,
             }}
@@ -41,21 +45,21 @@ export default function WelcomeScreen() {
           <Link href="/(auth)/phone-login" asChild>
             <Pressable
               style={{
-                backgroundColor: '#FF6B6B',
+                backgroundColor: theme.colors.primary,
                 paddingVertical: 16,
                 borderRadius: 16,
                 borderCurve: 'continuous',
                 alignItems: 'center',
               }}
             >
-              <Text style={{ color: '#FFFFFF', fontSize: 17, fontWeight: '700' }}>
+              <Text style={{ color: theme.colors.text, fontSize: 17, fontWeight: '700' }}>
                 Continue with Phone
               </Text>
             </Pressable>
           </Link>
         </View>
 
-        <Text style={{ color: '#666', fontSize: 13, textAlign: 'center', marginTop: 8 }}>
+        <Text style={{ color: theme.colors.textMuted, fontSize: 13, textAlign: 'center', marginTop: 8 }}>
           By continuing, you agree to our Terms of Service{'\n'}and Privacy Policy
         </Text>
       </View>
