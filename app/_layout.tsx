@@ -17,7 +17,7 @@ import { useNotifications } from '@/hooks/use-notifications';
 
 Sentry.init({
   dsn: process.env.EXPO_PUBLIC_SENTRY_DSN,
-  tracesSampleRate: 1.0,
+  tracesSampleRate: __DEV__ ? 1.0 : 0.2,
   enabled: !__DEV__,
 });
 
@@ -40,7 +40,7 @@ function ErrorFallback({ resetErrorBoundary }: { resetErrorBoundary: () => void 
           borderRadius: 8,
         }}
       >
-        <Text style={{ color: '#FFFFFF', fontSize: 16, fontWeight: '600' }}>Retry</Text>
+        <Text style={{ color: theme.colors.text, fontSize: 16, fontWeight: '600' }}>Retry</Text>
       </Pressable>
     </View>
   );

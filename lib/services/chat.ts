@@ -29,23 +29,25 @@ export async function createConversation(
   participantIds: string[],
   eventId?: string
 ): Promise<string> {
-  const { data: existing } = await supabase
+  const { data: existing, error: selectError } = await supabase
     .from('conversations')
     .select('id, participant_ids')
     .contains('participant_ids', participantIds);
 
-  const match = existing?.find(
-    (c) =>
-      c.participant_ids.length === participantIds.length &&
-      participantIds.every((id) => c.participant_ids.includes(id))
-  );
+  if (!selectError && existing) {
+    const match = existing.find(
+      (c) =>
+        c.participant_ids.length === participantIds.length &&
+        participantIds.every((id) => c.participant_ids.includes(id))
+    );
+    if (match) return match.id;
+  }
 
-  if (match) return match.id;
-
+  const sorted = [...participantIds].sort();
   const { data, error } = await supabase
     .from('conversations')
     .insert({
-      participant_ids: participantIds,
+      participant_ids: sorted,
       event_id: eventId ?? null,
     })
     .select('id')

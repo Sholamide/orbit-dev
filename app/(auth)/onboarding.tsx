@@ -73,7 +73,7 @@ export default function OnboardingScreen() {
         .upload(fileName, blob, { upsert: true, contentType });
     
       if (uploadError) {
-        console.log('Upload error:', uploadError.message);
+        Alert.alert('Upload Failed', 'Your photo could not be uploaded. You can update it later in your profile.');
       } else {
         const { data } = supabase.storage.from('avatars').getPublicUrl(fileName);
         avatarUrl = data.publicUrl;

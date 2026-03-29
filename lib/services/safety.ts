@@ -43,12 +43,13 @@ export async function getBlockedUserIds(userId: string): Promise<string[]> {
 }
 
 export async function isUserBlocked(blockerId: string, blockedId: string): Promise<boolean> {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('blocks')
     .select('id')
     .eq('blocker_id', blockerId)
     .eq('blocked_id', blockedId)
     .maybeSingle();
+  if (error) throw error;
   return !!data;
 }
 
@@ -119,7 +120,7 @@ export async function triggerAlert(checkinId: string): Promise<void> {
 }
 
 export async function getActiveCheckin(userId: string): Promise<string | null> {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('safety_checkins')
     .select('id')
     .eq('user_id', userId)
@@ -127,5 +128,6 @@ export async function getActiveCheckin(userId: string): Promise<string | null> {
     .order('check_in_at', { ascending: false })
     .limit(1)
     .maybeSingle();
+  if (error) throw error;
   return data?.id ?? null;
 }

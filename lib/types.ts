@@ -10,6 +10,7 @@ export type Database = {
           bio: string | null;
           vibe_preferences: string[] | null;
           is_anonymous: boolean;
+          push_token: string | null;
           created_at: string;
         };
         Insert: {
@@ -20,6 +21,7 @@ export type Database = {
           bio?: string | null;
           vibe_preferences?: string[] | null;
           is_anonymous?: boolean;
+          push_token?: string | null;
           created_at?: string;
         };
         Update: {
@@ -30,6 +32,7 @@ export type Database = {
           bio?: string | null;
           vibe_preferences?: string[] | null;
           is_anonymous?: boolean;
+          push_token?: string | null;
           created_at?: string;
         };
         Relationships: [];

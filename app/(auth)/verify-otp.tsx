@@ -21,6 +21,11 @@ export default function VerifyOTPScreen() {
   const router = useRouter();
 
   const handleVerify = async () => {
+    if (!phone) {
+      Alert.alert('Error', 'Phone number is missing. Please go back and try again.');
+      router.back();
+      return;
+    }
     if (code.length !== 6) {
       Alert.alert('Invalid Code', 'Please enter the 6-digit code.');
       return;
@@ -29,7 +34,7 @@ export default function VerifyOTPScreen() {
     setLoading(true);
 
     const { error } = await supabase.auth.verifyOtp({
-      phone: phone!,
+      phone,
       token: code,
       type: 'sms',
     });
@@ -43,7 +48,8 @@ export default function VerifyOTPScreen() {
   };
 
   const handleResend = async () => {
-    const { error } = await supabase.auth.signInWithOtp({ phone: phone! });
+    if (!phone) return;
+    const { error } = await supabase.auth.signInWithOtp({ phone });
     if (error) {
       Alert.alert('Error', error.message);
     } else {

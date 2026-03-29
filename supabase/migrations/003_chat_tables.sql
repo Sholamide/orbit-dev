@@ -44,6 +44,11 @@ CREATE POLICY "Users can view messages in their conversations"
       WHERE conversations.id = messages.conversation_id
       AND auth.uid()::text = ANY(conversations.participant_ids)
     )
+    AND NOT EXISTS (
+      SELECT 1 FROM blocks
+      WHERE (blocks.blocker_id = auth.uid()::text AND blocks.blocked_id = messages.sender_id)
+         OR (blocks.blocker_id = messages.sender_id AND blocks.blocked_id = auth.uid()::text)
+    )
   );
 
 CREATE POLICY "Users can send messages in their conversations"
@@ -54,6 +59,12 @@ CREATE POLICY "Users can send messages in their conversations"
       SELECT 1 FROM conversations
       WHERE conversations.id = messages.conversation_id
       AND auth.uid()::text = ANY(conversations.participant_ids)
+    )
+    AND NOT EXISTS (
+      SELECT 1 FROM blocks b
+      JOIN conversations c ON c.id = messages.conversation_id
+      WHERE b.blocker_id = ANY(c.participant_ids)
+        AND b.blocked_id = ANY(c.participant_ids)
     )
   );
 

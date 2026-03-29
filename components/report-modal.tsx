@@ -52,8 +52,15 @@ export function ReportModal({
           onPress: async () => {
             try {
               await blockUser(reporterId, reportedUserId);
-            } catch {}
-            resetAndClose();
+              resetAndClose();
+            } catch (err: any) {
+              if (err?.code === '23505') {
+                Alert.alert('Already Blocked', `${reportedUserName} is already blocked.`);
+                resetAndClose();
+              } else {
+                Alert.alert('Error', 'Could not block user. Please try again.');
+              }
+            }
           },
         },
         { text: 'Done', onPress: resetAndClose },

@@ -86,13 +86,19 @@ export default function DiscoverScreen() {
     }
 
     const venueIds = [...new Set(eventData.map((e) => e.venue_id))];
-    const { data: venueData } = await supabase
+    const { data: venueData, error: venueError } = await supabase
       .from('venues')
       .select('*')
       .in('id', venueIds);
 
+    if (venueError || !venueData) {
+      console.error('Failed to fetch venues:', venueError?.message);
+      setLoading(false);
+      return;
+    }
+
     const venueMap: Record<string, (typeof venueData extends (infer T)[] | null ? T : never)> = {};
-    for (const v of venueData ?? []) venueMap[v.id] = v;
+    for (const v of venueData) venueMap[v.id] = v;
 
     const eventsWithVenue: EventWithVenue[] = eventData
       .filter((e) => venueMap[e.venue_id])

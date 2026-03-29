@@ -140,27 +140,42 @@ export default function ProfileScreen() {
   };
 
   const handleRequestResponse = async (requestId: string, senderId: string, eventId: string, accept: boolean) => {
-    const { error } = await supabase
-      .from('companion_requests')
-      .update({ status: accept ? 'accepted' : 'declined' })
-      .eq('id', requestId);
+    if (!accept) {
+      const { error } = await supabase
+        .from('companion_requests')
+        .update({ status: 'declined' })
+        .eq('id', requestId);
 
-    if (error) {
-      Alert.alert('Error', error.message);
+      if (error) {
+        Alert.alert('Error', error.message);
+        return;
+      }
+      loadRequests();
       return;
     }
 
-    if (accept && user) {
-      try {
-        const convId = await createConversation([user.id, senderId], eventId);
+    if (!user) return;
 
-        Alert.alert('Matched!', 'You can now chat with them.', [
-          { text: 'Chat Now', onPress: () => router.push(`/chat/${convId}`) },
-          { text: 'Later' },
-        ]);
-      } catch {
-        Alert.alert('Error', 'Could not create conversation. Please try again.');
+    try {
+      const convId = await createConversation([user.id, senderId], eventId);
+
+      const { error } = await supabase
+        .from('companion_requests')
+        .update({ status: 'accepted' })
+        .eq('id', requestId);
+
+      if (error) {
+        Alert.alert('Error', error.message);
+        loadRequests();
+        return;
       }
+
+      Alert.alert('Matched!', 'You can now chat with them.', [
+        { text: 'Chat Now', onPress: () => router.push(`/chat/${convId}`) },
+        { text: 'Later' },
+      ]);
+    } catch {
+      Alert.alert('Error', 'Could not create conversation. Please try again.');
     }
 
     loadRequests();
@@ -395,11 +410,15 @@ export default function ProfileScreen() {
             value={isAnonymous}
             onValueChange={async (val) => {
               if (!user) return;
-              setIsAnonymous(val);
-              await supabase
+              const { error } = await supabase
                 .from('profiles')
                 .update({ is_anonymous: val })
                 .eq('id', user.id);
+              if (error) {
+                Alert.alert('Error', 'Could not update Ghost Mode.');
+                return;
+              }
+              setIsAnonymous(val);
               refreshProfile();
             }}
             trackColor={{ false: theme.colors.border, true: theme.colors.primaryMuted }}

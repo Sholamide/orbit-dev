@@ -31,6 +31,7 @@ export default function SafetyScreen() {
 
   const [contacts, setContacts] = useState<TrustedContact[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [activeCheckinId, setActiveCheckinId] = useState<string | null>(null);
   const [addingContact, setAddingContact] = useState(false);
   const [newName, setNewName] = useState('');
@@ -38,6 +39,7 @@ export default function SafetyScreen() {
 
   const loadData = useCallback(async () => {
     if (!user) return;
+    setLoadError(null);
     try {
       const [contactsData, checkinId] = await Promise.all([
         getTrustedContacts(user.id),
@@ -45,8 +47,11 @@ export default function SafetyScreen() {
       ]);
       setContacts(contactsData);
       setActiveCheckinId(checkinId);
-    } catch {}
-    setLoading(false);
+    } catch (err) {
+      setLoadError(err instanceof Error ? err.message : 'Failed to load safety data.');
+    } finally {
+      setLoading(false);
+    }
   }, [user]);
 
   useEffect(() => {
@@ -137,6 +142,25 @@ export default function SafetyScreen() {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.colors.background }}>
         <ActivityIndicator size="large" color={theme.colors.primary} />
+      </View>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.colors.background, padding: 24, gap: 16 }}>
+        <Text style={{ fontSize: 18, fontWeight: '600', color: theme.colors.text }}>
+          Something went wrong
+        </Text>
+        <Text style={{ fontSize: 14, color: theme.colors.textTertiary, textAlign: 'center' }}>
+          {loadError}
+        </Text>
+        <Pressable
+          onPress={loadData}
+          style={{ backgroundColor: theme.colors.primary, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 12, borderCurve: 'continuous' }}
+        >
+          <Text style={{ color: theme.colors.text, fontWeight: '600' }}>Retry</Text>
+        </Pressable>
       </View>
     );
   }

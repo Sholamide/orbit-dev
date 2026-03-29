@@ -187,7 +187,7 @@ export function SwipeCard({
           </View>
 
           <Text
-            style={{ fontSize: 14, color: '#CCC', lineHeight: 20 }}
+            style={{ fontSize: 14, color: theme.colors.textSecondary, lineHeight: 20 }}
             numberOfLines={2}
           >
             {venue.description}
@@ -200,7 +200,7 @@ export function SwipeCard({
           </View>
 
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 }}>
-            <Text style={{ fontSize: 13, color: '#999' }}>📍 {venue.address}</Text>
+            <Text style={{ fontSize: 13, color: theme.colors.textTertiary }}>📍 {venue.address}</Text>
           </View>
         </View>
       </Animated.View>

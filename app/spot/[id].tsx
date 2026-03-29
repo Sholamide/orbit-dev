@@ -26,6 +26,7 @@ export default function SpotDetailScreen() {
   const [events, setEvents] = useState<Event[]>([]);
   const [attendees, setAttendees] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
+  const [hasError, setHasError] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -40,6 +41,7 @@ export default function SpotDetailScreen() {
       ]);
 
       if (venueRes.error || eventsRes.error) {
+        setHasError(true);
         setLoading(false);
         return;
       }
@@ -70,10 +72,23 @@ export default function SpotDetailScreen() {
     load();
   }, [id]);
 
-  if (loading || !venue) {
+  if (loading) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.colors.background }}>
         <ActivityIndicator size="large" color={theme.colors.primary} />
+      </View>
+    );
+  }
+
+  if (hasError || !venue) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.colors.background, gap: 12 }}>
+        <Text style={{ fontSize: 18, fontWeight: '600', color: theme.colors.text }}>
+          Could not load this spot
+        </Text>
+        <Text style={{ fontSize: 14, color: theme.colors.textTertiary }}>
+          Please check your connection and try again.
+        </Text>
       </View>
     );
   }

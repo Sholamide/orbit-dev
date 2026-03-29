@@ -32,6 +32,7 @@ export default function ExploreScreen() {
   const [venues, setVenues] = useState<Venue[]>([]);
   const [filteredVenues, setFilteredVenues] = useState<Venue[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
 
@@ -42,6 +43,7 @@ export default function ExploreScreen() {
         .select('*')
         .order('hot_score', { ascending: false });
       if (error) {
+        setLoadError(error.message);
         setLoading(false);
         return;
       }
@@ -118,6 +120,19 @@ export default function ExploreScreen() {
     );
   }
 
+  if (loadError) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.colors.background, padding: 24, gap: 16 }}>
+        <Text style={{ fontSize: 18, fontWeight: '600', color: theme.colors.text }}>
+          Could not load venues
+        </Text>
+        <Text style={{ fontSize: 14, color: theme.colors.textTertiary, textAlign: 'center' }}>
+          {loadError}
+        </Text>
+      </View>
+    );
+  }
+
   return (
     <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
       <View style={{ paddingTop: insets.top + 16, paddingHorizontal: 16, gap: 14, paddingBottom: 8 }}>
@@ -143,7 +158,7 @@ export default function ExploreScreen() {
 
         <FlashList<string>
           horizontal
-          data={CATEGORIES as unknown as string[]}
+          data={[...CATEGORIES]}
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={{ gap: 8 }}
           renderItem={({ item }) => (

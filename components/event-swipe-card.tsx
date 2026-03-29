@@ -204,7 +204,7 @@ export function EventSwipeCard({
 
           {event.description && (
             <Text
-              style={{ fontSize: 14, color: '#CCC', lineHeight: 20 }}
+              style={{ fontSize: 14, color: theme.colors.textSecondary, lineHeight: 20 }}
               numberOfLines={2}
             >
               {event.description}
@@ -218,7 +218,7 @@ export function EventSwipeCard({
           </View>
 
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 }}>
-            <Text style={{ fontSize: 13, color: '#999' }}>
+            <Text style={{ fontSize: 13, color: theme.colors.textTertiary }}>
               📍 {event.venue.name} • {event.venue.address}
             </Text>
           </View>

@@ -33,10 +33,15 @@ export async function registerForPushNotifications(userId: string): Promise<stri
 
   const token = (await Notifications.getExpoPushTokenAsync({ projectId })).data;
 
-  await supabase
+  const { error: updateError } = await supabase
     .from('profiles')
-    .update({ push_token: token } as any)
+    .update({ push_token: token })
     .eq('id', userId);
+
+  if (updateError) {
+    console.error('Failed to save push token:', updateError.message);
+    return null;
+  }
 
   if (Platform.OS === 'android') {
     Notifications.setNotificationChannelAsync('default', {

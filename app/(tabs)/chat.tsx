@@ -40,14 +40,25 @@ export default function ChatListScreen() {
   useEffect(() => {
     if (!user) return;
 
-    const channel = subscribeToConversations(user.id, () => {
-      loadConversations();
+    const channel = subscribeToConversations(user.id, (updated) => {
+      setConversations((prev) => {
+        if (!prev) return [updated];
+        const idx = prev.findIndex((c) => c.id === updated.id);
+        const next = idx >= 0
+          ? prev.map((c) => (c.id === updated.id ? updated : c))
+          : [updated, ...prev];
+        return next.sort((a, b) => {
+          const aTime = a.last_message_at ? new Date(a.last_message_at).getTime() : 0;
+          const bTime = b.last_message_at ? new Date(b.last_message_at).getTime() : 0;
+          return bTime - aTime;
+        });
+      });
     });
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user, loadConversations]);
+  }, [user]);
 
   useEffect(() => {
     if (!conversations || !user) return;
