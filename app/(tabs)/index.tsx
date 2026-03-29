@@ -1,98 +1,286 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import { useRouter } from 'expo-router';
+import React, { use, useCallback, useEffect, useState } from 'react';
+import { ActivityIndicator, Pressable, Text, View } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+import { EventSwipeCard } from '@/components/event-swipe-card';
+import { SwipeCard } from '@/components/swipe-card';
+import { AuthContext } from '@/contexts/auth-context';
+import { supabase } from '@/lib/supabase';
+import { type EventWithVenue, type Venue } from '@/lib/types';
 
-export default function HomeScreen() {
+type DiscoverMode = 'spots' | 'events';
+
+export default function DiscoverScreen() {
+  const { user } = use(AuthContext);
+  const router = useRouter();
+
+  const [mode, setMode] = useState<DiscoverMode>('spots');
+  const [venues, setVenues] = useState<Venue[]>([]);
+  const [events, setEvents] = useState<EventWithVenue[]>([]);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [loading, setLoading] = useState(true);
+
+  const fetchVenues = useCallback(async () => {
+    if (!user) return;
+
+    const { data: swipedVenueIds } = await supabase
+      .from('swipes')
+      .select('venue_id')
+      .eq('user_id', user.id);
+
+    const excludeIds = swipedVenueIds?.map((s) => s.venue_id) ?? [];
+
+    let query = supabase
+      .from('venues')
+      .select('*')
+      .order('hot_score', { ascending: false });
+
+    if (excludeIds.length > 0) {
+      query = query.not('id', 'in', `(${excludeIds.join(',')})`);
+    }
+
+    const { data } = await query;
+    setVenues(data ?? []);
+    setCurrentIndex(0);
+    setLoading(false);
+  }, [user]);
+
+  const fetchEvents = useCallback(async () => {
+    if (!user) return;
+
+    const now = new Date();
+    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+    const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).toISOString();
+
+    const { data: eventData } = await supabase
+      .from('events')
+      .select('*')
+      .gte('starts_at', startOfDay)
+      .lt('starts_at', endOfDay)
+      .order('starts_at', { ascending: true });
+
+    if (!eventData || eventData.length === 0) {
+      setEvents([]);
+      setCurrentIndex(0);
+      setLoading(false);
+      return;
+    }
+
+    const venueIds = [...new Set(eventData.map((e) => e.venue_id))];
+    const { data: venueData } = await supabase
+      .from('venues')
+      .select('*')
+      .in('id', venueIds);
+
+    const venueMap: Record<string, (typeof venueData extends (infer T)[] | null ? T : never)> = {};
+    for (const v of venueData ?? []) venueMap[v.id] = v;
+
+    const eventsWithVenue: EventWithVenue[] = eventData
+      .filter((e) => venueMap[e.venue_id])
+      .map((e) => ({ ...e, venue: venueMap[e.venue_id]! }));
+
+    setEvents(eventsWithVenue);
+    setCurrentIndex(0);
+    setLoading(false);
+  }, [user]);
+
+  useEffect(() => {
+    setLoading(true);
+    if (mode === 'spots') {
+      fetchVenues();
+    } else {
+      fetchEvents();
+    }
+  }, [mode, fetchVenues, fetchEvents]);
+
+  const handleSpotSwipe = async (direction: 'left' | 'right') => {
+    const venue = venues[currentIndex];
+    if (!venue || !user) return;
+
+    await supabase.from('swipes').upsert({
+      user_id: user.id,
+      venue_id: venue.id,
+      direction,
+    });
+
+    setTimeout(() => {
+      setCurrentIndex((prev) => prev + 1);
+    }, 350);
+  };
+
+  const handleEventSwipe = async (direction: 'left' | 'right') => {
+    const event = events[currentIndex];
+    if (!event || !user) return;
+
+    if (direction === 'right') {
+      await supabase.from('attendances').upsert({
+        user_id: user.id,
+        event_id: event.id,
+        status: 'going' as const,
+      });
+    }
+
+    setTimeout(() => {
+      setCurrentIndex((prev) => prev + 1);
+    }, 350);
+  };
+
+  const handleTap = () => {
+    if (mode === 'spots') {
+      const venue = venues[currentIndex];
+      if (venue) router.push(`/spot/${venue.id}`);
+    } else {
+      const event = events[currentIndex];
+      if (event) router.push(`/event/${event.id}`);
+    }
+  };
+
+  if (loading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#0D0D0D' }}>
+        <ActivityIndicator size="large" color="#FF6B6B" />
+      </View>
+    );
+  }
+
+  const items = mode === 'spots' ? venues : events;
+  const remaining = items.slice(currentIndex);
+  const noMore = remaining.length === 0;
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+    <GestureHandlerRootView style={{ flex: 1, backgroundColor: '#0D0D0D' }}>
+      <View style={{ paddingTop: 60, paddingHorizontal: 16, paddingBottom: 8 }}>
+        <Text style={{ fontSize: 32, fontWeight: '800', color: '#FFF' }}>
+          Discover
+        </Text>
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+        {/* Mode Toggle */}
+        <View
+          style={{
+            flexDirection: 'row',
+            backgroundColor: '#1A1A1A',
+            borderRadius: 14,
+            borderCurve: 'continuous',
+            padding: 4,
+            marginTop: 12,
+          }}
+        >
+          <Pressable
+            onPress={() => setMode('spots')}
+            style={{
+              flex: 1,
+              paddingVertical: 10,
+              borderRadius: 11,
+              borderCurve: 'continuous',
+              backgroundColor: mode === 'spots' ? '#FF6B6B' : 'transparent',
+              alignItems: 'center',
+            }}
+          >
+            <Text
+              style={{
+                color: mode === 'spots' ? '#FFF' : '#888',
+                fontWeight: '700',
+                fontSize: 14,
+              }}
+            >
+              Spots 📍
+            </Text>
+          </Pressable>
+          <Pressable
+            onPress={() => setMode('events')}
+            style={{
+              flex: 1,
+              paddingVertical: 10,
+              borderRadius: 11,
+              borderCurve: 'continuous',
+              backgroundColor: mode === 'events' ? '#FF6B6B' : 'transparent',
+              alignItems: 'center',
+            }}
+          >
+            <Text
+              style={{
+                color: mode === 'events' ? '#FFF' : '#888',
+                fontWeight: '700',
+                fontSize: 14,
+              }}
+            >
+              Events 🎉
+            </Text>
+          </Pressable>
+        </View>
+
+        <Text style={{ fontSize: 15, color: '#888', marginTop: 8 }}>
+          {mode === 'spots'
+            ? 'Swipe right on spots that look fire 🔥'
+            : "Swipe right to RSVP to today's events 🙋"}
+        </Text>
+      </View>
+
+      <View style={{ flex: 1, marginHorizontal: 16, marginBottom: 16 }}>
+        {noMore ? (
+          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', gap: 16 }}>
+            <Text style={{ fontSize: 48 }}>{mode === 'spots' ? '🌙' : '🎭'}</Text>
+            <Text style={{ fontSize: 20, fontWeight: '700', color: '#FFF' }}>
+              {mode === 'spots' ? "You've seen everything" : 'No more events today'}
+            </Text>
+            <Text style={{ fontSize: 15, color: '#888', textAlign: 'center' }}>
+              {mode === 'spots'
+                ? "Check back later for new spots\nor explore what's trending."
+                : 'Check back later or switch\nto Spots mode.'}
+            </Text>
+            <Pressable
+              onPress={() => {
+                setLoading(true);
+                if (mode === 'spots') fetchVenues();
+                else fetchEvents();
+              }}
+              style={{
+                backgroundColor: '#FF6B6B',
+                paddingHorizontal: 24,
+                paddingVertical: 12,
+                borderRadius: 14,
+                borderCurve: 'continuous',
+                marginTop: 8,
+              }}
+            >
+              <Text style={{ color: '#FFF', fontWeight: '700', fontSize: 15 }}>
+                Refresh
+              </Text>
+            </Pressable>
+          </View>
+        ) : mode === 'spots' ? (
+          (remaining as Venue[])
+            .slice(0, 3)
+            .reverse()
+            .map((venue, i, arr) => (
+              <SwipeCard
+                key={venue.id}
+                venue={venue}
+                isTop={i === arr.length - 1}
+                index={arr.length - 1 - i}
+                onSwipeLeft={() => handleSpotSwipe('left')}
+                onSwipeRight={() => handleSpotSwipe('right')}
+                onTap={handleTap}
+              />
+            ))
+        ) : (
+          (remaining as EventWithVenue[])
+            .slice(0, 3)
+            .reverse()
+            .map((event, i, arr) => (
+              <EventSwipeCard
+                key={event.id}
+                event={event}
+                isTop={i === arr.length - 1}
+                index={arr.length - 1 - i}
+                onSwipeLeft={() => handleEventSwipe('left')}
+                onSwipeRight={() => handleEventSwipe('right')}
+                onTap={handleTap}
+              />
+            ))
+        )}
+      </View>
+    </GestureHandlerRootView>
   );
 }
-
-const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
-  },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
-  },
-});
