@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -11,36 +11,63 @@ import {
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 
 import { useAppTheme } from '@/constants/tokens';
+import {
+  formatNigeriaNationalForDisplay,
+  sanitizeNationalDigitsInput,
+  toNigeriaE164,
+} from '@/lib/phone/nigeria';
+import { describeOtpSmsError } from '@/lib/auth/otp-errors';
+import { setPendingOtpPhone } from '@/lib/auth/pending-otp-phone';
+import { posthog } from '@/lib/posthog';
 import { supabase } from '@/lib/supabase';
 
 export default function PhoneLoginScreen() {
   const theme = useAppTheme();
-  const [phone, setPhone] = useState('');
+  const [nationalDigits, setNationalDigits] = useState('');
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
+  const e164 = useMemo(() => toNigeriaE164(nationalDigits), [nationalDigits]);
+  const displayValue = formatNigeriaNationalForDisplay(nationalDigits);
+  const canSubmit = e164 !== null;
+
   const handleSendOTP = async () => {
-    if (phone.length < 10) {
-      Alert.alert('Invalid Number', 'Please enter a valid phone number.');
+    const formattedPhone = toNigeriaE164(nationalDigits);
+    if (!formattedPhone) {
+      Alert.alert(
+        'Invalid Number',
+        'Enter a valid Nigerian mobile number (10 digits starting with 7, 8, or 9).'
+      );
       return;
     }
 
     setLoading(true);
-    const formattedPhone = phone.startsWith('+') ? phone : `+1${phone}`;
 
-    const { error } = await supabase.auth.signInWithOtp({ phone: formattedPhone });
+    try {
+      const { error } = await supabase.auth.signInWithOtp({ phone: formattedPhone });
 
-    setLoading(false);
+      if (error) {
+        Alert.alert('Could not send code', describeOtpSmsError(error.message));
+        return;
+      }
 
-    if (error) {
-      Alert.alert('Error', error.message);
-      return;
+      posthog.capture('phone_login_attempted');
+
+      setPendingOtpPhone(formattedPhone);
+      router.push({
+        pathname: '/(auth)/verify-otp',
+        params: { phone: encodeURIComponent(formattedPhone) },
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Unknown error';
+      Alert.alert(
+        'Connection problem',
+        'Could not reach the server. Check your internet, and that EXPO_PUBLIC_SUPABASE_URL in .env.local matches your Supabase project URL (Settings → API).'
+      );
+      console.error('signInWithOtp failed:', message, err);
+    } finally {
+      setLoading(false);
     }
-
-    router.push({
-      pathname: '/(auth)/verify-otp',
-      params: { phone: formattedPhone },
-    });
   };
 
   return (
@@ -61,7 +88,7 @@ export default function PhoneLoginScreen() {
             What&apos;s your number?
           </Text>
           <Text style={{ fontSize: 16, color: theme.colors.textTertiary, lineHeight: 22 }}>
-            We&apos;ll text you a code to verify it&apos;s really you.
+            Nigerian mobile number — we&apos;ll text you a code to verify it&apos;s really you.
           </Text>
         </View>
 
@@ -78,7 +105,7 @@ export default function PhoneLoginScreen() {
             borderColor: theme.colors.border,
           }}
         >
-          <Text style={{ fontSize: 18, color: theme.colors.textTertiary, marginRight: 8 }}>+1</Text>
+          <Text style={{ fontSize: 18, color: theme.colors.textTertiary, marginRight: 8 }}>+234</Text>
           <TextInput
             style={{
               flex: 1,
@@ -86,20 +113,20 @@ export default function PhoneLoginScreen() {
               color: theme.colors.text,
               paddingVertical: 16,
             }}
-            placeholder="(555) 123-4567"
+            placeholder="901 900 8187"
             placeholderTextColor={theme.colors.textPlaceholder}
             keyboardType="phone-pad"
-            value={phone}
-            onChangeText={setPhone}
+            value={displayValue}
+            onChangeText={(text) => setNationalDigits(sanitizeNationalDigitsInput(text))}
             autoFocus
           />
         </View>
 
         <Pressable
           onPress={handleSendOTP}
-          disabled={loading || phone.length < 10}
+          disabled={loading || !canSubmit}
           style={{
-            backgroundColor: phone.length >= 10 ? theme.colors.primary : theme.colors.border,
+            backgroundColor: canSubmit ? theme.colors.primary : theme.colors.border,
             paddingVertical: 16,
             borderRadius: 16,
             borderCurve: 'continuous',

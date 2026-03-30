@@ -14,6 +14,7 @@ import {
 import { AttendeeAvatar } from '@/components/attendee-avatar';
 import { useAppTheme } from '@/constants/tokens';
 import { AuthContext } from '@/contexts/auth-context';
+import { posthog } from '@/lib/posthog';
 import { supabase } from '@/lib/supabase';
 import { type Attendance, type Event, type Profile, type Venue } from '@/lib/types';
 
@@ -86,6 +87,10 @@ export default function EventDetailScreen() {
   }, [id, user]);
 
   useEffect(() => {
+    posthog.capture('event_viewed', { event_id: id });
+  }, [id]);
+
+  useEffect(() => {
     loadData();
   }, [loadData]);
 
@@ -96,6 +101,7 @@ export default function EventDetailScreen() {
     if (myAttendance) {
       await supabase.from('attendances').delete().eq('id', myAttendance.id);
       setMyAttendance(null);
+      posthog.capture('event_rsvp', { event_id: id, action: 'cancelled' });
     } else {
       const { data } = await supabase
         .from('attendances')
@@ -103,6 +109,7 @@ export default function EventDetailScreen() {
         .select()
         .single();
       setMyAttendance(data);
+      posthog.capture('event_rsvp', { event_id: id, action: 'going' });
     }
 
     setActionLoading(false);
@@ -134,6 +141,7 @@ export default function EventDetailScreen() {
     if (error) {
       Alert.alert('Error', error.message);
     } else {
+      posthog.capture('companion_request_sent', { event_id: id, receiver_id: receiverId });
       Alert.alert('Sent! 🎉', "They'll get notified. If they accept, you can chat!");
     }
   };
@@ -152,6 +160,8 @@ export default function EventDetailScreen() {
     <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
       <Stack.Screen
         options={{
+          headerShown: true,
+          headerBackButtonDisplayMode: 'minimal',
           title: event.title,
           headerTransparent: true,
           headerTintColor: theme.colors.text,

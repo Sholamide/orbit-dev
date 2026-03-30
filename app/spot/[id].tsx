@@ -14,6 +14,7 @@ import { AttendeeAvatar } from '@/components/attendee-avatar';
 import { HotMeter } from '@/components/hot-meter';
 import { VibeBadge } from '@/components/vibe-badge';
 import { useAppTheme } from '@/constants/tokens';
+import { posthog } from '@/lib/posthog';
 import { supabase } from '@/lib/supabase';
 import { type Event, type Profile, type Venue } from '@/lib/types';
 
@@ -27,6 +28,10 @@ export default function SpotDetailScreen() {
   const [attendees, setAttendees] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
+
+  useEffect(() => {
+    posthog.capture('spot_viewed', { spot_id: id });
+  }, [id]);
 
   useEffect(() => {
     async function load() {
@@ -97,6 +102,8 @@ export default function SpotDetailScreen() {
     <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
       <Stack.Screen
         options={{
+          headerShown: true,
+          headerBackButtonDisplayMode: 'minimal',
           title: venue.name,
           headerTransparent: true,
           headerTintColor: theme.colors.text,

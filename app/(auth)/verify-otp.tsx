@@ -11,11 +11,23 @@ import {
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 
 import { useAppTheme } from '@/constants/tokens';
+import { describeOtpSmsError } from '@/lib/auth/otp-errors';
+import {
+  clearPendingOtpPhone,
+  getPendingOtpPhone,
+} from '@/lib/auth/pending-otp-phone';
+import { formatNigeriaE164ForDisplay, normalizePhoneFromRouteParam } from '@/lib/phone/nigeria';
+import { posthog } from '@/lib/posthog';
 import { supabase } from '@/lib/supabase';
 
 export default function VerifyOTPScreen() {
   const theme = useAppTheme();
-  const { phone } = useLocalSearchParams<{ phone: string }>();
+  const params = useLocalSearchParams<{ phone: string | string[] }>();
+  const rawParam = params.phone;
+  const singleParam = Array.isArray(rawParam) ? rawParam[0] : rawParam;
+  const phone =
+    getPendingOtpPhone() ?? normalizePhoneFromRouteParam(singleParam);
+
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
   const router = useRouter();
@@ -45,14 +57,18 @@ export default function VerifyOTPScreen() {
       Alert.alert('Verification Failed', error.message);
       return;
     }
+
+    clearPendingOtpPhone();
+    posthog.capture('otp_verified');
   };
 
   const handleResend = async () => {
     if (!phone) return;
     const { error } = await supabase.auth.signInWithOtp({ phone });
     if (error) {
-      Alert.alert('Error', error.message);
+      Alert.alert('Could not send code', describeOtpSmsError(error.message));
     } else {
+      posthog.capture('otp_resent');
       Alert.alert('Sent', 'A new code has been sent to your phone.');
     }
   };
@@ -75,7 +91,8 @@ export default function VerifyOTPScreen() {
             Enter the code
           </Text>
           <Text style={{ fontSize: 16, color: theme.colors.textTertiary, lineHeight: 22 }}>
-            We sent a 6-digit code to {phone || 'your phone'}
+            We sent a 6-digit code to{' '}
+            {phone ? formatNigeriaE164ForDisplay(phone) : 'your phone'}
           </Text>
         </View>
 

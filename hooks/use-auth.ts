@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { type Session, type User } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
+import { posthog } from '@/lib/posthog';
 import { type Profile } from '@/lib/types';
 
 export function useAuth() {
@@ -10,47 +11,71 @@ export function useAuth() {
   const [loading, setLoading] = useState(true);
 
   const fetchProfile = useCallback(async (userId: string) => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('profiles')
       .select('*')
       .eq('id', userId)
       .single();
+    if (error) {
+      console.error('fetchProfile:', error.message);
+      setProfile(null);
+      return null;
+    }
     setProfile(data);
     return data;
   }, []);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        fetchProfile(session.user.id);
+    let cancelled = false;
+
+    const applySession = async (next: Session | null) => {
+      if (cancelled) return;
+      setLoading(true);
+      setSession(next);
+      setUser(next?.user ?? null);
+      if (next?.user) {
+        posthog.identify(next.user.id);
+        await fetchProfile(next.user.id);
+      } else {
+        posthog.reset();
+        setProfile(null);
       }
-      setLoading(false);
+      if (!cancelled) {
+        setLoading(false);
+      }
+    };
+
+    void supabase.auth.getSession().then(({ data: { session: initial } }) => {
+      if (cancelled) return;
+      void applySession(initial);
     });
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        fetchProfile(session.user.id);
-      } else {
-        setProfile(null);
+    } = supabase.auth.onAuthStateChange((event, nextSession) => {
+      if (event === 'INITIAL_SESSION') {
+        return;
       }
-      setLoading(false);
+      void (async () => {
+        await applySession(nextSession);
+      })();
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      cancelled = true;
+      subscription.unsubscribe();
+    };
   }, [fetchProfile]);
 
   const signOut = useCallback(async () => {
     await supabase.auth.signOut();
-    setSession(null);
-    setUser(null);
-    setProfile(null);
   }, []);
+
+  const refreshProfile = useCallback(async () => {
+    if (user) {
+      await fetchProfile(user.id);
+    }
+  }, [user, fetchProfile]);
 
   return {
     session,
@@ -58,6 +83,6 @@ export function useAuth() {
     profile,
     loading,
     signOut,
-    refreshProfile: () => user && fetchProfile(user.id),
+    refreshProfile,
   };
 }

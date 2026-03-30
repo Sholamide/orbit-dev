@@ -1,9 +1,15 @@
 import { createClient } from '@supabase/supabase-js';
+import Constants from 'expo-constants';
 import * as SecureStore from 'expo-secure-store';
 import { type Database } from './types';
 
-const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
-const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_KEY;
+type SupabaseExtra = { supabaseUrl?: string; supabaseAnonKey?: string };
+const extra = Constants.expoConfig?.extra as SupabaseExtra | undefined;
+
+const supabaseUrl =
+  process.env.EXPO_PUBLIC_SUPABASE_URL || extra?.supabaseUrl || '';
+const supabaseAnonKey =
+  process.env.EXPO_PUBLIC_SUPABASE_KEY || extra?.supabaseAnonKey || '';
 
 if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error(
