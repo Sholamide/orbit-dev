@@ -14,6 +14,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppTheme } from '@/constants/tokens';
 import { AuthContext } from '@/contexts/auth-context';
 import {
+  formatNigeriaE164ForDisplay,
+  formatNigeriaNationalForDisplay,
+  sanitizeNationalDigitsInput,
+  toNigeriaE164,
+} from '@/lib/phone/nigeria';
+import {
   addTrustedContact,
   createSafetyCheckin,
   getActiveCheckin,
@@ -60,9 +66,17 @@ export default function SafetyScreen() {
   }, [loadData]);
 
   const handleAddContact = async () => {
-    if (!user || !newName.trim() || !newPhone.trim()) return;
+    if (!user || !newName.trim()) return;
+    const e164 = toNigeriaE164(newPhone);
+    if (!e164) {
+      Alert.alert(
+        'Invalid number',
+        'Enter a valid Nigerian mobile number (10 digits starting with 7, 8, or 9).'
+      );
+      return;
+    }
     try {
-      await addTrustedContact(user.id, newName.trim(), newPhone.trim());
+      await addTrustedContact(user.id, newName.trim(), e164);
       setNewName('');
       setNewPhone('');
       setAddingContact(false);
@@ -302,22 +316,32 @@ export default function SafetyScreen() {
               value={newName}
               onChangeText={setNewName}
             />
-            <TextInput
+            <View
               style={{
+                flexDirection: 'row',
+                alignItems: 'center',
                 backgroundColor: theme.colors.background,
                 borderRadius: 10,
-                padding: 12,
-                fontSize: 15,
-                color: theme.colors.text,
+                paddingHorizontal: 12,
                 borderWidth: 1,
                 borderColor: theme.colors.border,
               }}
-              placeholder="Phone number"
-              placeholderTextColor={theme.colors.textMuted}
-              value={newPhone}
-              onChangeText={setNewPhone}
-              keyboardType="phone-pad"
-            />
+            >
+              <Text style={{ fontSize: 15, color: theme.colors.textTertiary, marginRight: 6 }}>+234</Text>
+              <TextInput
+                style={{
+                  flex: 1,
+                  paddingVertical: 12,
+                  fontSize: 15,
+                  color: theme.colors.text,
+                }}
+                placeholder="901 900 8187"
+                placeholderTextColor={theme.colors.textMuted}
+                value={formatNigeriaNationalForDisplay(newPhone)}
+                onChangeText={(text) => setNewPhone(sanitizeNationalDigitsInput(text))}
+                keyboardType="phone-pad"
+              />
+            </View>
             <View style={{ flexDirection: 'row', gap: 10 }}>
               <Pressable
                 onPress={() => {
@@ -340,16 +364,17 @@ export default function SafetyScreen() {
               </Pressable>
               <Pressable
                 onPress={handleAddContact}
-                disabled={!newName.trim() || !newPhone.trim()}
+                disabled={!newName.trim() || !toNigeriaE164(newPhone)}
                 accessibilityRole="button"
                 accessibilityLabel="Confirm add contact"
-                accessibilityState={{ disabled: !newName.trim() || !newPhone.trim() }}
+                accessibilityState={{ disabled: !newName.trim() || !toNigeriaE164(newPhone) }}
                 style={{
                   flex: 1,
                   padding: 12,
                   borderRadius: 10,
                   alignItems: 'center',
-                  backgroundColor: newName.trim() && newPhone.trim() ? theme.colors.primary : theme.colors.border,
+                  backgroundColor:
+                    newName.trim() && toNigeriaE164(newPhone) ? theme.colors.primary : theme.colors.border,
                 }}
               >
                 <Text style={{ color: theme.colors.textOnPrimary, fontWeight: '600' }}>Add</Text>
@@ -407,7 +432,10 @@ export default function SafetyScreen() {
                   {contact.name}
                 </Text>
                 <Text style={{ fontSize: 13, color: theme.colors.textTertiary }}>
-                  {contact.phone}
+                  {(() => {
+                    const e164 = toNigeriaE164(contact.phone);
+                    return e164 ? formatNigeriaE164ForDisplay(e164) : contact.phone;
+                  })()}
                 </Text>
               </View>
               <Pressable

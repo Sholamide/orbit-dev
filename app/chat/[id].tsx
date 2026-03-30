@@ -105,7 +105,9 @@ export default function ChatScreen() {
     <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
       <Stack.Screen
         options={{
-          title: otherProfile?.display_name ?? '',
+          headerShown: true,
+          headerBackButtonDisplayMode: 'minimal',
+          title: otherProfile?.display_name || 'Chat',
           headerTintColor: theme.colors.text,
           headerStyle: { backgroundColor: theme.colors.background },
           headerRight: () =>

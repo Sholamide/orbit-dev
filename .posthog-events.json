@@ -1,0 +1,72 @@
+[
+  {
+    "event": "phone_login_attempted",
+    "description": "User submits their phone number to receive an OTP code",
+    "file": "app/(auth)/phone-login.tsx"
+  },
+  {
+    "event": "otp_verified",
+    "description": "User successfully verifies their OTP code and is authenticated",
+    "file": "app/(auth)/verify-otp.tsx"
+  },
+  {
+    "event": "otp_resent",
+    "description": "User requests a new OTP code to be sent to their phone",
+    "file": "app/(auth)/verify-otp.tsx"
+  },
+  {
+    "event": "onboarding_completed",
+    "description": "User completes profile setup during onboarding (display name, bio, vibes)",
+    "file": "app/(auth)/onboarding.tsx"
+  },
+  {
+    "event": "spot_swiped",
+    "description": "User swipes left or right on a venue/spot card in the Discover feed",
+    "file": "app/(tabs)/index.tsx"
+  },
+  {
+    "event": "event_swiped",
+    "description": "User swipes left or right on an event card in the Discover feed",
+    "file": "app/(tabs)/index.tsx"
+  },
+  {
+    "event": "spot_viewed",
+    "description": "User taps through to view full spot detail (top of spot conversion funnel)",
+    "file": "app/spot/[id].tsx"
+  },
+  {
+    "event": "event_viewed",
+    "description": "User taps through to view full event detail (top of event conversion funnel)",
+    "file": "app/event/[id].tsx"
+  },
+  {
+    "event": "event_rsvp",
+    "description": "User RSVPs to an event or cancels their RSVP",
+    "file": "app/event/[id].tsx"
+  },
+  {
+    "event": "companion_request_sent",
+    "description": "User sends a companion request to another attendee at an event",
+    "file": "app/event/[id].tsx"
+  },
+  {
+    "event": "companion_request_responded",
+    "description": "User accepts or declines an incoming companion request",
+    "file": "app/(tabs)/profile.tsx"
+  },
+  {
+    "event": "ghost_mode_toggled",
+    "description": "User toggles Ghost Mode (anonymous browsing) on or off",
+    "file": "app/(tabs)/profile.tsx"
+  },
+  {
+    "event": "profile_updated",
+    "description": "User saves edits to their display name or bio",
+    "file": "app/(tabs)/profile.tsx"
+  },
+  {
+    "event": "user_signed_out",
+    "description": "User signs out of the app",
+    "file": "app/(tabs)/profile.tsx"
+  }
+]

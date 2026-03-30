@@ -14,6 +14,7 @@ import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 
 import { useAppTheme } from '@/constants/tokens';
 import { AuthContext } from '@/contexts/auth-context';
+import { posthog } from '@/lib/posthog';
 import { supabase } from '@/lib/supabase';
 
 const VIBES = ['Hype', 'Chill', 'Exclusive', 'Live Music', 'Rooftop', 'Underground', 'Day Party', 'Late Night'];
@@ -100,7 +101,12 @@ export default function OnboardingScreen() {
       return;
     }
 
-    refreshProfile();
+    posthog.capture('onboarding_completed', {
+      display_name: displayName.trim(),
+      vibes: selectedVibes,
+    });
+
+    await refreshProfile();
     router.replace('/(tabs)');
   };
 

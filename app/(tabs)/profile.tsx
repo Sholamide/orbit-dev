@@ -18,6 +18,7 @@ import { AttendeeAvatar } from '@/components/attendee-avatar';
 import { VibeBadge } from '@/components/vibe-badge';
 import { useAppTheme } from '@/constants/tokens';
 import { AuthContext } from '@/contexts/auth-context';
+import { posthog } from '@/lib/posthog';
 import { createConversation } from '@/lib/services/chat';
 import { supabase } from '@/lib/supabase';
 import { type CompanionRequest, type Profile } from '@/lib/types';
@@ -25,7 +26,7 @@ import { type CompanionRequest, type Profile } from '@/lib/types';
 type RequestWithProfile = CompanionRequest & { sender_profile?: Profile; event_title?: string };
 
 export default function ProfileScreen() {
-  const { user, profile, signOut, refreshProfile } = use(AuthContext);
+  const { user, profile, loading: authLoading, signOut, refreshProfile } = use(AuthContext);
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const theme = useAppTheme();
@@ -104,6 +105,7 @@ export default function ProfileScreen() {
     if (error) {
       Alert.alert('Error', error.message);
     } else {
+      posthog.capture('profile_updated');
       setEditing(false);
       refreshProfile();
     }
@@ -150,6 +152,7 @@ export default function ProfileScreen() {
         Alert.alert('Error', error.message);
         return;
       }
+      posthog.capture('companion_request_responded', { action: 'declined', event_id: eventId });
       loadRequests();
       return;
     }
@@ -170,6 +173,7 @@ export default function ProfileScreen() {
         return;
       }
 
+      posthog.capture('companion_request_responded', { action: 'accepted', event_id: eventId });
       Alert.alert('Matched!', 'You can now chat with them.', [
         { text: 'Chat Now', onPress: () => router.push(`/chat/${convId}`) },
         { text: 'Later' },
@@ -181,12 +185,47 @@ export default function ProfileScreen() {
     loadRequests();
   };
 
-  if (!profile) {
+  if (authLoading) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.colors.background }}>
         <ActivityIndicator size="large" color={theme.colors.primary} />
       </View>
     );
+  }
+
+  if (user && !profile) {
+    return (
+      <View
+        style={{
+          flex: 1,
+          justifyContent: 'center',
+          alignItems: 'center',
+          backgroundColor: theme.colors.background,
+          padding: 24,
+          gap: 16,
+        }}
+      >
+        <Text style={{ fontSize: 16, color: theme.colors.textSecondary, textAlign: 'center' }}>
+          We couldn&apos;t load your profile. Check your connection and try again.
+        </Text>
+        <Pressable
+          onPress={() => void refreshProfile()}
+          style={{
+            backgroundColor: theme.colors.primary,
+            paddingHorizontal: 24,
+            paddingVertical: 12,
+            borderRadius: 12,
+            borderCurve: 'continuous',
+          }}
+        >
+          <Text style={{ color: theme.colors.text, fontWeight: '600' }}>Retry</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
+  if (!profile) {
+    return null;
   }
 
   return (
@@ -418,6 +457,7 @@ export default function ProfileScreen() {
                 Alert.alert('Error', 'Could not update Ghost Mode.');
                 return;
               }
+              posthog.capture('ghost_mode_toggled', { enabled: val });
               setIsAnonymous(val);
               refreshProfile();
             }}
@@ -432,7 +472,7 @@ export default function ProfileScreen() {
         onPress={() => {
           Alert.alert('Sign Out', 'Are you sure?', [
             { text: 'Cancel', style: 'cancel' },
-            { text: 'Sign Out', style: 'destructive', onPress: signOut },
+            { text: 'Sign Out', style: 'destructive', onPress: () => { posthog.capture('user_signed_out'); signOut(); } },
           ]);
         }}
         style={{

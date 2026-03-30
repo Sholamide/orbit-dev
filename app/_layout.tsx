@@ -4,9 +4,10 @@ import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { use, useEffect } from 'react';
-import { ActivityIndicator, Pressable, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { ErrorBoundary } from 'react-error-boundary';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
+import { PostHogProvider } from 'posthog-react-native';
 import 'react-native-reanimated';
 
 import { AuthContext } from '@/contexts/auth-context';
@@ -14,6 +15,7 @@ import { useAppTheme } from '@/constants/tokens';
 import { useAuth } from '@/hooks/use-auth';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useNotifications } from '@/hooks/use-notifications';
+import { posthog } from '@/lib/posthog';
 
 const sentryDsn = process.env.EXPO_PUBLIC_SENTRY_DSN;
 if (sentryDsn) {
@@ -73,28 +75,44 @@ function AuthGate({ children }: { children: React.ReactNode }) {
       }
     } else if (session && inOnboarding && profile?.display_name) {
       router.replace('/(tabs)');
+    } else if (
+      session &&
+      !loading &&
+      profile &&
+      !profile.display_name?.trim() &&
+      segments[0] === '(tabs)'
+    ) {
+      router.replace('/(auth)/onboarding');
     }
   }, [session, loading, segments, profile]);
 
-  if (loading) {
-    return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.colors.background }}>
-        <ActivityIndicator size="large" color={theme.colors.primary} />
-      </View>
-    );
-  }
-
   const inAuthGroup = segments[0] === '(auth)';
-  if (!session && !inAuthGroup) {
-    return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.colors.background }}>
-        <ActivityIndicator size="large" color={theme.colors.primary} />
-      </View>
-    );
-  }
+  const blocking =
+    loading || (!session && !inAuthGroup);
 
-  return <>{children}</>;
+  return (
+    <View style={styles.gateRoot}>
+      {children}
+      {blocking && (
+        <View
+          style={[StyleSheet.absoluteFillObject, styles.blockingOverlay, { backgroundColor: theme.colors.background }]}
+          pointerEvents="auto"
+        >
+          <ActivityIndicator size="large" color={theme.colors.primary} />
+        </View>
+      )}
+    </View>
+  );
 }
+
+const styles = StyleSheet.create({
+  gateRoot: { flex: 1 },
+  blockingOverlay: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 100,
+  },
+});
 
 function RootLayout() {
   const colorScheme = useColorScheme();
@@ -108,33 +126,28 @@ function RootLayout() {
   }, [auth.loading]);
 
   return (
-    <ErrorBoundary FallbackComponent={ErrorFallback} onError={(error, info) => Sentry.captureException(error, { extra: { componentStack: info.componentStack } })}>
-      <KeyboardProvider>
-        <AuthContext value={auth}>
-          <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-            <AuthGate>
-              <Stack screenOptions={{ headerShown: false }}>
-                <Stack.Screen name="(auth)" />
-                <Stack.Screen name="(tabs)" />
-                <Stack.Screen
-                  name="spot/[id]"
-                  options={{ headerShown: true, title: '', headerBackButtonDisplayMode: 'minimal' }}
-                />
-                <Stack.Screen
-                  name="event/[id]"
-                  options={{ headerShown: true, title: '', headerBackButtonDisplayMode: 'minimal' }}
-                />
-                <Stack.Screen
-                  name="chat/[id]"
-                  options={{ headerShown: true, title: 'Chat', headerBackButtonDisplayMode: 'minimal' }}
-                />
-              </Stack>
-            </AuthGate>
-            <StatusBar style="auto" />
-          </ThemeProvider>
-        </AuthContext>
-      </KeyboardProvider>
-    </ErrorBoundary>
+    <PostHogProvider client={posthog}>
+      <ErrorBoundary FallbackComponent={ErrorFallback} onError={(error, info) => Sentry.captureException(error, { extra: { componentStack: info.componentStack } })}>
+        <KeyboardProvider>
+          <AuthContext value={auth}>
+            <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+              <AuthGate>
+                {/*
+                  Keep a single Stack here; do not duplicate Stack.Screen for spot/event/chat —
+                  those routes set headers via <Stack.Screen /> inside each file. Duplicating at
+                  the root was breaking navigator state ("Cannot read property 'stale' of undefined").
+                */}
+                <Stack screenOptions={{ headerShown: false }}>
+                  <Stack.Screen name="(auth)" />
+                  <Stack.Screen name="(tabs)" />
+                </Stack>
+              </AuthGate>
+              <StatusBar style="auto" />
+            </ThemeProvider>
+          </AuthContext>
+        </KeyboardProvider>
+      </ErrorBoundary>
+    </PostHogProvider>
   );
 }
 

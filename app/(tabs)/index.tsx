@@ -8,6 +8,7 @@ import { EventSwipeCard } from '@/components/event-swipe-card';
 import { SwipeCard } from '@/components/swipe-card';
 import { useAppTheme } from '@/constants/tokens';
 import { AuthContext } from '@/contexts/auth-context';
+import { posthog } from '@/lib/posthog';
 import { supabase } from '@/lib/supabase';
 import { type EventWithVenue, type Venue } from '@/lib/types';
 
@@ -128,6 +129,8 @@ export default function DiscoverScreen() {
       direction,
     });
 
+    posthog.capture('spot_swiped', { direction, venue_id: venue.id });
+
     setTimeout(() => {
       setCurrentIndex((prev) => prev + 1);
     }, 350);
@@ -144,6 +147,8 @@ export default function DiscoverScreen() {
         status: 'going' as const,
       });
     }
+
+    posthog.capture('event_swiped', { direction, event_id: event.id });
 
     setTimeout(() => {
       setCurrentIndex((prev) => prev + 1);
